@@ -3,15 +3,15 @@
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { create } from "zustand";
-import { useAuth } from "@/src/hooks/use-auth";
-import { API } from "@/src/lib/axios-client";
-import type { UserType } from "@/src/types/auth.type";
+import { useAuth } from "@/hooks/use-auth";
+import { API } from "@/lib/axios-client";
+import type { UserType } from "@/types/auth.type";
 import type {
   ChatType,
   CreateChatType,
   CreateMessageType,
   MessageType,
-} from "@/src/types/chat.type";
+} from "@/types/chat.type";
 
 interface SingleChatState {
   chat: ChatType;

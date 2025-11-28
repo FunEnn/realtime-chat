@@ -3,13 +3,9 @@
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { create } from "zustand";
-import { useSocket } from "@/src/hooks/use-socket";
-import { API } from "@/src/lib/axios-client";
-import type {
-  LoginInput,
-  RegisterInput,
-  UserType,
-} from "@/src/types/auth.type";
+import { useSocket } from "@/hooks/use-socket";
+import { API } from "@/lib/axios-client";
+import type { LoginInput, RegisterInput, UserType } from "@/types/auth.type";
 
 interface AuthState {
   user: UserType | null;

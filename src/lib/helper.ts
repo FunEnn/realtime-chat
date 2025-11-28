@@ -2,8 +2,8 @@
 
 import { format, isThisWeek, isToday, isYesterday } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
-import { useSocket } from "@/src/hooks/use-socket";
-import type { ChatType } from "@/src/types/chat.type";
+import { useSocket } from "@/hooks/use-socket";
+import type { ChatType } from "@/types/chat.type";
 
 export interface ChatDisplayInfo {
   name: string;
