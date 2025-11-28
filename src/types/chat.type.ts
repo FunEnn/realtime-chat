@@ -32,9 +32,18 @@ export type CreateChatInput = {
   groupName?: string;
 };
 
+export type CreateChatType = CreateChatInput;
+
 export type SendMessageInput = {
   chatId: string;
   content?: string;
   image?: string;
   replyToId?: string;
+};
+
+export type CreateMessageType = {
+  chatId: string | null;
+  content?: string;
+  image?: string;
+  replyTo?: MessageType | null;
 };
