@@ -51,7 +51,7 @@ export const formatChatTime = (date: string | Date) => {
   const newDate = new Date(date);
   if (Number.isNaN(newDate.getTime())) return "Invalid date";
 
-  if (isToday(newDate)) return format(newDate, "h:mm a");
+  if (isToday(newDate)) return format(newDate, "HH:mm");
   if (isYesterday(newDate)) return "Yesterday";
   if (isThisWeek(newDate)) return format(newDate, "EEEE");
   return format(newDate, "M/d");

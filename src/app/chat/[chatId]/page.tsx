@@ -66,7 +66,10 @@ const SingleChat = () => {
   }
 
   return (
-    <div className="relative h-svh flex flex-col">
+    <div
+      className="relative h-svh flex flex-col animate-slide-in-left lg:animate-none"
+      data-chat-container
+    >
       <ChatHeader chat={chat} currentUserId={currentUserId} />
 
       <div className="flex-1 overflow-y-auto bg-background">

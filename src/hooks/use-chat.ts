@@ -32,6 +32,7 @@ interface ChatState {
   fetchChats: () => Promise<void>;
   createChat: (payload: CreateChatType) => Promise<ChatType | null>;
   fetchSingleChat: (chatId: string) => Promise<void>;
+  fetchChatHistory: (chatId: string) => Promise<MessageType[]>;
   sendMessage: (payload: CreateMessageType) => Promise<void>;
   addNewChat: (chat: ChatType) => void;
   updateChatLastMessage: (chatId: string, lastMessage: MessageType) => void;
@@ -118,6 +119,19 @@ export const useChat = create<ChatState>()((set, get) => ({
       set({ singleChat: null });
     } finally {
       set({ isSingleChatLoading: false });
+    }
+  },
+
+  fetchChatHistory: async (chatId) => {
+    try {
+      const { data } = await API.get<{ messages: MessageType[] }>(
+        `/chat/${chatId}/messages`,
+      );
+      return data.messages;
+    } catch (error) {
+      console.error("Fetch chat history error:", error);
+      toast.error(getErrorMessage(error, "Failed to fetch chat history"));
+      return [];
     }
   },
 

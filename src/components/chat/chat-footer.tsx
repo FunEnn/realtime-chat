@@ -94,11 +94,10 @@ const ChatFooter = memo(
 
     return (
       <>
-        <div className="sticky bottom-0 inset-x-0 z-[999] bg-card border-t border-border py-4">
+        <div className="sticky bottom-0 left-0 right-0 bg-background border-t border-border py-3 md:py-4 safe-area-bottom">
           {image && !isSendingMsg && (
-            <div className="max-w-6xl mx-auto px-8.5">
+            <div className="max-w-6xl mx-auto px-3 md:px-8.5">
               <div className="relative w-fit">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={image}
                   className="object-contain h-16 bg-muted min-w-16"
@@ -109,7 +108,7 @@ const ChatFooter = memo(
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute top-px right-1 bg-black/50 text-white rounded-full cursor-pointer"
+                  className="absolute top-px right-1 bg-black/50 text-white rounded-full cursor-pointer h-6 w-6"
                   onClick={handleRemoveImage}
                 >
                   <X className="h-3 w-3" />
@@ -121,15 +120,15 @@ const ChatFooter = memo(
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
-              className="max-w-6xl px-8.5 mx-auto flex items-end gap-2"
+              className="max-w-6xl px-3 md:px-8.5 mx-auto flex items-end gap-1.5 md:gap-2"
             >
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 md:gap-1.5">
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
                   disabled={isSendingMsg}
-                  className="rounded-full"
+                  className="rounded-full h-9 w-9 md:h-10 md:w-10"
                   onClick={() => imageInputRef.current?.click()}
                 >
                   <Paperclip className="h-4 w-4" />
@@ -154,7 +153,7 @@ const ChatFooter = memo(
                       {...field}
                       autoComplete="off"
                       placeholder="Type new message"
-                      className="min-h-[40px] bg-background"
+                      className="min-h-[36px] md:min-h-[40px] bg-background text-sm md:text-base"
                     />
                   </FormItem>
                 )}
@@ -163,7 +162,7 @@ const ChatFooter = memo(
               <Button
                 type="submit"
                 size="icon"
-                className="rounded-lg"
+                className="rounded-lg h-9 w-9 md:h-10 md:w-10"
                 disabled={isSendingMsg}
               >
                 <Send className="h-3.5 w-3.5" />

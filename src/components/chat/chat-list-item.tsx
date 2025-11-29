@@ -48,7 +48,7 @@ const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full flex items-center gap-2 p-2 rounded-sm hover:bg-sidebar-accent transition-colors text-left",
+        "w-full flex items-center gap-2 p-1.5 md:p-2 rounded-sm hover:bg-sidebar-accent transition-colors text-left",
         pathname.includes(chat._id) && "!bg-sidebar-accent",
       )}
     >
@@ -57,16 +57,17 @@ const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
         src={avatar}
         isGroup={isGroup}
         isOnline={isOnline}
+        size="w-10 h-10 md:w-11 md:h-11"
       />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-0.5">
-          <h5 className="text-sm font-semibold truncate">{name}</h5>
-          <span className="text-xs ml-2 shrink-0 text-muted-foreground">
+          <h5 className="text-xs md:text-sm font-semibold truncate">{name}</h5>
+          <span className="text-[10px] md:text-xs ml-2 shrink-0 text-muted-foreground">
             {formatChatTime(lastMessage?.updatedAt || createdAt)}
           </span>
         </div>
-        <p className="text-xs truncate text-muted-foreground -mt-px">
+        <p className="text-[10px] md:text-xs truncate text-muted-foreground -mt-px">
           {getLastMessageText()}
         </p>
       </div>

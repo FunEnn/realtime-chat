@@ -82,11 +82,19 @@ export const useAuth = create<AuthState>()((set) => ({
       set({ user: null });
       useSocket.getState().disconnectSocket();
       toast.success("Logout successfully");
+
+      if (typeof window !== "undefined") {
+        window.location.href = "/";
+      }
     } catch (error) {
       console.error("Logout error:", error);
       toast.error(getErrorMessage(error, "Logout failed"));
       set({ user: null });
       useSocket.getState().disconnectSocket();
+
+      if (typeof window !== "undefined") {
+        window.location.href = "/";
+      }
     }
   },
 

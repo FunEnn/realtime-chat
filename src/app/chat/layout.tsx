@@ -1,6 +1,7 @@
 "use client";
 
 import AppWrapper from "@/components/app-wrapper";
+import AsideBar from "@/components/aside-bar";
 import ChatList from "@/components/chat/chat-list";
 import { useChatId } from "@/hooks/use-chat-id";
 import { cn } from "@/lib/utils";
@@ -14,15 +15,24 @@ export default function ChatLayout({
 
   return (
     <AppWrapper>
-      <div className="h-full flex">
-        <div className={cn(chatId ? "hidden lg:block" : "block")}>
+      <div className={cn("lg:block", chatId ? "hidden" : "block")}>
+        <AsideBar />
+      </div>
+
+      <div className={cn("h-full flex", chatId ? "" : "ml-14 md:ml-16")}>
+        <div
+          className={cn(
+            "lg:block lg:w-auto",
+            chatId ? "hidden" : "block w-full",
+          )}
+        >
           <ChatList />
         </div>
 
         <div
           className={cn(
-            "flex-1 lg:flex-1",
-            !chatId ? "hidden lg:block" : "block",
+            "lg:flex-1 lg:block",
+            chatId ? "block w-full" : "hidden",
           )}
         >
           {children}
