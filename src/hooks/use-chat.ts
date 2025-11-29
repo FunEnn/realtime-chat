@@ -108,7 +108,7 @@ export const useChat = create<ChatState>()((set, get) => ({
   },
 
   fetchSingleChat: async (chatId) => {
-    set({ isSingleChatLoading: true });
+    set({ isSingleChatLoading: true, singleChat: null });
     try {
       const { data } = await API.get<SingleChatState>(`/chat/${chatId}`);
       set({ singleChat: data });
@@ -174,6 +174,19 @@ export const useChat = create<ChatState>()((set, get) => ({
 
       set((state) => {
         if (!state.singleChat) return state;
+        const realMessageExists = state.singleChat.messages.some(
+          (msg) => msg._id === data.message._id,
+        );
+        if (realMessageExists) {
+          return {
+            singleChat: {
+              chat: state.singleChat.chat,
+              messages: state.singleChat.messages.filter(
+                (msg) => msg._id !== tempId,
+              ),
+            },
+          };
+        }
         return {
           singleChat: {
             chat: state.singleChat.chat,
@@ -229,8 +242,16 @@ export const useChat = create<ChatState>()((set, get) => ({
   },
 
   addNewMessage: (chatId, message) => {
+    if (!message || typeof message !== "object" || !message._id) {
+      console.error("Invalid message received in addNewMessage:", message);
+      return;
+    }
     set((state) => {
       if (state.singleChat?.chat._id !== chatId) return state;
+      const messageExists = state.singleChat.messages.some(
+        (msg) => msg._id === message._id,
+      );
+      if (messageExists) return state;
       return {
         singleChat: {
           chat: state.singleChat.chat,

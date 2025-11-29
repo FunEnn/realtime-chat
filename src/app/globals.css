@@ -2,9 +2,9 @@
 @import "tw-animate-css";
 
 html,
-hody {
+body {
   height: 100%;
-  font-family: "DM Sans", serif !important;
+  font-family: "DM Sans", serif;
 }
 
 @custom-variant dark (&:is(.dark *));
@@ -127,7 +127,8 @@ hody {
 
 @layer utilities {
   @keyframes float {
-    0%, 100% {
+    0%,
+    100% {
       transform: translateY(0px) translateX(0px);
     }
     25% {
@@ -140,9 +141,10 @@ hody {
       transform: translateY(-15px) translateX(5px);
     }
   }
-  
+
   @keyframes sparkle {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 0;
       transform: scale(0);
     }
@@ -151,35 +153,35 @@ hody {
       transform: scale(1);
     }
   }
-  
+
   .animate-float {
     animation: float 6s ease-in-out infinite;
   }
-  
+
   .animate-sparkle {
     animation: sparkle 3s ease-in-out infinite;
   }
-  
+
   .animation-delay-1000 {
     animation-delay: 1s;
   }
-  
+
   .animation-delay-1500 {
     animation-delay: 1.5s;
   }
-  
+
   .animation-delay-2000 {
     animation-delay: 2s;
   }
-  
+
   .animation-delay-2500 {
     animation-delay: 2.5s;
   }
-  
+
   .animation-delay-3000 {
     animation-delay: 3s;
   }
-  
+
   .animation-delay-4000 {
     animation-delay: 4s;
   }

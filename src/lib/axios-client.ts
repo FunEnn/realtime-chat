@@ -22,13 +22,6 @@ const API = axios.create({
 
 API.interceptors.request.use(
   (config) => {
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
     return config;
   },
   (error) => Promise.reject(error),
@@ -54,9 +47,8 @@ API.interceptors.response.use(
 
     switch (status) {
       case 401:
-        toast.error("Unauthorized, please login");
+        toast.error("登录已过期，请重新登录");
         if (typeof window !== "undefined") {
-          localStorage.removeItem("token");
           window.location.href = "/";
         }
         break;

@@ -13,7 +13,7 @@
       "!.next",
       "!dist",
       "!build",
-      "!src/components/ui/**"
+      "!src/components/ui"
     ]
   },
   "formatter": {
@@ -27,12 +27,24 @@
       "recommended": true,
       "suspicious": {
         "noUnknownAtRules": "off"
+      },
+      "performance": {
+        "noImgElement": "off"
+      },
+      "a11y": {
+        "useSemanticElements": "off"
       }
     }
   },
   "javascript": {
     "formatter": {
       "quoteStyle": "double"
+    }
+  },
+  "css": {
+    "parser": {
+      "cssModules": true,
+      "tailwindDirectives": true
     }
   },
   "assist": {
