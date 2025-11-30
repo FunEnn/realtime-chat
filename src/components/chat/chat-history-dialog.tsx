@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Calendar, Search, X } from "lucide-react";
+import { ArrowLeft, Calendar, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,12 +32,15 @@ export default function ChatHistoryDialog({
   const [dateFilter, setDateFilter] = useState("");
   const [chatMessages, setChatMessages] = useState<MessageType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
-  // 如果传入了chatId，则获取该聊天室的所有历史消息
+  const activeChatId = selectedChatId || chatId;
+
+  // 获取选中聊天室的历史消息
   useEffect(() => {
-    if (open && chatId) {
+    if (open && activeChatId) {
       setIsLoading(true);
-      fetchChatHistory(chatId)
+      fetchChatHistory(activeChatId)
         .then((messages) => {
           setChatMessages(messages);
         })
@@ -45,12 +48,22 @@ export default function ChatHistoryDialog({
           setIsLoading(false);
         });
     }
-  }, [open, chatId, fetchChatHistory]);
+  }, [open, activeChatId, fetchChatHistory]);
+
+  // 当对话框关闭时重置状态
+  useEffect(() => {
+    if (!open) {
+      setSelectedChatId(null);
+      setChatMessages([]);
+      setSearchQuery("");
+      setDateFilter("");
+    }
+  }, [open]);
 
   // 获取所有聊天记录和消息
   const allHistory = useMemo(() => {
-    if (chatId && chatMessages.length > 0) {
-      const currentChat = chats.find((c) => c._id === chatId);
+    if (activeChatId && chatMessages.length > 0) {
+      const currentChat = chats.find((c) => c._id === activeChatId);
       if (!currentChat) return [];
 
       return chatMessages.map((message) => ({
@@ -65,7 +78,7 @@ export default function ChatHistoryDialog({
       chat,
       lastMessage: chat.lastMessage,
     }));
-  }, [chats, chatId, chatMessages]);
+  }, [chats, activeChatId, chatMessages]);
 
   // 过滤历史记录
   const filteredHistory = useMemo(() => {
@@ -157,9 +170,24 @@ export default function ChatHistoryDialog({
       </DialogTrigger>
       <DialogContent className="max-w-[92vw] sm:max-w-[85vw] md:max-w-2xl max-h-[90vh] md:max-h-[85vh] p-3 sm:p-4 md:p-6 gap-3 md:gap-4">
         <DialogHeader className="space-y-1">
-          <DialogTitle className="text-sm sm:text-base md:text-lg">
-            Chat History
-          </DialogTitle>
+          <div className="flex items-center gap-2">
+            {selectedChatId && !chatId && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedChatId(null)}
+                className="h-8 w-8 p-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+            )}
+            <DialogTitle className="text-sm sm:text-base md:text-lg">
+              {selectedChatId && !chatId
+                ? chats.find((c) => c._id === selectedChatId)?.groupName ||
+                  "Chat History"
+                : "Chat History"}
+            </DialogTitle>
+          </div>
         </DialogHeader>
 
         <div className="space-y-2 md:space-y-3">
@@ -283,8 +311,14 @@ export default function ChatHistoryDialog({
                           key={item.chat._id}
                           className="w-full p-1.5 sm:p-2 md:p-3 rounded-md sm:rounded-lg border hover:bg-accent active:bg-accent focus:bg-accent transition-colors cursor-pointer text-left"
                           onClick={() => {
-                            window.location.href = `/chat/${item.chat._id}`;
-                            setOpen(false);
+                            if (chatId) {
+                              // 如果是从聊天室内打开的，则跳转
+                              window.location.href = `/chat/${item.chat._id}`;
+                              setOpen(false);
+                            } else {
+                              // 如果是从聊天列表打开的，则在对话框内查看历史
+                              setSelectedChatId(item.chat._id);
+                            }
                           }}
                         >
                           <div className="flex items-start justify-between mb-0.5 sm:mb-1">

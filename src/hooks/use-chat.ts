@@ -3,7 +3,7 @@
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { create } from "zustand";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuthStore } from "@/hooks/use-clerk-auth";
 import { API } from "@/lib/axios-client";
 import type { UserType } from "@/types/auth.type";
 import type {
@@ -138,7 +138,7 @@ export const useChat = create<ChatState>()((set, get) => ({
   sendMessage: async (payload) => {
     set({ isSendingMsg: true });
     const { chatId, replyTo, content, image } = payload;
-    const { user } = useAuth.getState();
+    const { user } = useAuthStore.getState();
 
     if (!chatId || !user?._id) {
       toast.error("Chat or user not available");

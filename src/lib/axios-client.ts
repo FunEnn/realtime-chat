@@ -20,8 +20,21 @@ const API = axios.create({
   },
 });
 
+// Token storage for client-side requests
+let authToken: string | null = null;
+
+export const setAuthToken = (token: string | null) => {
+  authToken = token;
+};
+
+export const getAuthToken = () => authToken;
+
 API.interceptors.request.use(
-  (config) => {
+  async (config) => {
+    // Add auth token to requests if available
+    if (authToken) {
+      config.headers.Authorization = `Bearer ${authToken}`;
+    }
     return config;
   },
   (error) => Promise.reject(error),

@@ -39,7 +39,7 @@ const ChatFooter = memo(
     });
 
     const handleImageChange = useCallback(
-      (e: React.ChangeEvent<HTMLInputElement>) => {
+      async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
         if (!file.type.startsWith("image/")) {
@@ -47,9 +47,24 @@ const ChatFooter = memo(
           return;
         }
 
-        const reader = new FileReader();
-        reader.onloadend = () => setImage(reader.result as string);
-        reader.readAsDataURL(file);
+        try {
+          toast.loading("Compressing image...", { id: "compress" });
+          const { compressImage, getBase64Size } = await import(
+            "@/lib/image-compression"
+          );
+
+          // Compress image to max 2MB, 1920px, quality 0.8
+          const compressed = await compressImage(file, 2, 1920, 0.8);
+          const sizeMB = getBase64Size(compressed);
+
+          toast.success(`Image compressed to ${sizeMB.toFixed(2)}MB`, {
+            id: "compress",
+          });
+          setImage(compressed);
+        } catch (error) {
+          console.error("Image compression failed:", error);
+          toast.error("Failed to compress image", { id: "compress" });
+        }
       },
       [],
     );

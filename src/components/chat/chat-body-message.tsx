@@ -2,7 +2,7 @@
 
 import { Reply } from "lucide-react";
 import { memo, useCallback, useRef } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-clerk-auth";
 import { formatChatTime } from "@/lib/helper";
 import { cn } from "@/lib/utils";
 import type { MessageType } from "@/types/chat.type";
@@ -83,7 +83,7 @@ const ChatBodyMessage = memo(({ message, onReply }: Props) => {
         <div className="flex-shrink-0 flex items-start">
           <AvatarWithBadge
             name={message.sender?.name || "No name"}
-            src={message.sender?.avatar || ""}
+            src={message.sender?.avatar || undefined}
           />
         </div>
       )}

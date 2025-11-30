@@ -6,9 +6,9 @@ import ChatFooter from "@/components/chat/chat-footer";
 import ChatHeader from "@/components/chat/chat-header";
 import EmptyState from "@/components/empty-state";
 import { Spinner } from "@/components/ui/spinner";
-import { useAuth } from "@/hooks/use-auth";
 import { useChat } from "@/hooks/use-chat";
 import { useChatId } from "@/hooks/use-chat-id";
+import { useAuth } from "@/hooks/use-clerk-auth";
 import { useSocket } from "@/hooks/use-socket";
 import type { MessageType } from "@/types/chat.type";
 

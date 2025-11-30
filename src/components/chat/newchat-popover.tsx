@@ -198,7 +198,7 @@ NewChatPopover.displayName = "NewChatPopover";
 
 const UserAvatar = memo(({ user }: { user: UserType }) => (
   <>
-    <AvatarWithBadge name={user.name} src={user.avatar ?? ""} />
+    <AvatarWithBadge name={user.name} src={user.avatar ?? undefined} />
     <div className="flex-1 min-w-0">
       <h5 className="text-[13.5px] font-medium truncate">{user.name}</h5>
       <p className="text-xs text-muted-foreground">Hey there! I'm using chat</p>

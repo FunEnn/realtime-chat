@@ -1,27 +1,25 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Toaster } from "@/components/ui/sonner";
-import { useAuth } from "@/hooks/use-auth";
 import { useChat } from "@/hooks/use-chat";
+import { useAuth } from "@/hooks/use-clerk-auth";
 
 interface AppWrapperProps {
   children: React.ReactNode;
 }
 
 const AppWrapper = ({ children }: AppWrapperProps) => {
-  const { refreshAuthStatus, user } = useAuth();
+  const { user, isLoading } = useAuth();
   const { fetchChats } = useChat();
+  const hasFetchedChats = useRef(false);
 
   useEffect(() => {
-    refreshAuthStatus();
-  }, [refreshAuthStatus]);
-
-  useEffect(() => {
-    if (user) {
+    if (user && !isLoading && !hasFetchedChats.current) {
       fetchChats();
+      hasFetchedChats.current = true;
     }
-  }, [user, fetchChats]);
+  }, [user, isLoading, fetchChats]);
 
   return (
     <>

@@ -19,7 +19,7 @@ export default function ChatLayout({
         <AsideBar />
       </div>
 
-      <div className={cn("h-full flex", chatId ? "" : "ml-14 md:ml-16")}>
+      <div className={cn("h-full flex md:ml-16 lg:ml-14")}>
         <div
           className={cn(
             "lg:block lg:w-auto",

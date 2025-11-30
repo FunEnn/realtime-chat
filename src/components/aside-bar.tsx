@@ -3,7 +3,7 @@
 import { Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-clerk-auth";
 import { isUserOnline } from "@/lib/helper";
 import AvatarWithBadge from "./avatar-with-badge";
 import Logo from "./logo";
@@ -67,7 +67,7 @@ const AsideBar = () => {
               <button type="button" className="outline-none">
                 <AvatarWithBadge
                   name={user?.name || "Unknown"}
-                  src={user?.avatar || ""}
+                  src={user?.avatar || undefined}
                   isOnline={isOnline}
                   size="w-9 h-9 md:w-10 md:h-10"
                   className="!bg-white ring-2 ring-white/20 hover:ring-white/40 transition-all cursor-pointer"

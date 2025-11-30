@@ -2,6 +2,7 @@
 
 import { io, type Socket } from "socket.io-client";
 import { create } from "zustand";
+import { getAuthToken } from "@/lib/axios-client";
 
 const SOCKET_URL =
   process.env.NEXT_PUBLIC_SOCKET_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -24,7 +25,7 @@ export const useSocket = create<SocketState>()((set, get) => ({
   isConnected: false,
   reconnectAttempts: 0,
 
-  connectSocket: () => {
+  connectSocket: async () => {
     const existingSocket = get().socket;
     if (existingSocket?.connected) return;
 
@@ -33,13 +34,26 @@ export const useSocket = create<SocketState>()((set, get) => ({
       existingSocket.disconnect();
     }
 
-    const newSocket = io(SOCKET_URL || undefined, {
+    const token = getAuthToken();
+    if (!token) return;
+
+    const socketConfig: any = {
       withCredentials: true,
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
       reconnectionDelay: RECONNECT_DELAY,
-    });
+      auth: async (cb: (data: { token: string }) => void) => {
+        // Get fresh token on each connection/reconnection
+        const freshToken = getAuthToken();
+        cb({ token: freshToken || token });
+      },
+      extraHeaders: {
+        Authorization: `Bearer ${token}`,
+      },
+    };
+
+    const newSocket = io(SOCKET_URL || undefined, socketConfig);
 
     set({ socket: newSocket, reconnectAttempts: 0 });
 
