@@ -1,7 +1,7 @@
 import { format, isThisWeek, isToday, isYesterday } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { useSocket } from "@/hooks/use-socket";
-import type { ChatType } from "@/types/chat.type";
+import type { ChatType, PublicRoomChatType } from "@/types/chat.type";
 
 export const isUserOnline = (userId?: string, isMounted: boolean = true) => {
   if (!userId || !isMounted) return false;
@@ -10,13 +10,34 @@ export const isUserOnline = (userId?: string, isMounted: boolean = true) => {
 };
 
 export const getOtherUserAndGroup = (
-  chat: ChatType,
+  chat: ChatType | PublicRoomChatType,
   currentUserId: string | null,
   isMounted: boolean = true,
 ) => {
+  const isPublicRoom = "members" in chat && "memberCount" in chat;
+
+  if (isPublicRoom) {
+    const members = chat.members || [];
+    const onlineCount = isMounted
+      ? members.filter((memberId: string) => isUserOnline(memberId, isMounted))
+          .length
+      : 0;
+    const totalMembers = chat.memberCount || members.length || 0;
+
+    return {
+      name: chat.name || "Public Room",
+      subheading: chat.description || `${totalMembers} members`,
+      avatar: chat.avatar || "",
+      isGroup: true,
+      isOnline: false,
+      onlineCount,
+      totalMembers,
+    };
+  }
+
   const isGroup = chat?.isGroup;
 
-  if (isGroup) {
+  if (isGroup && "participants" in chat) {
     const onlineCount = isMounted
       ? chat.participants.filter((p) => isUserOnline(p._id, isMounted)).length
       : 0;
@@ -35,7 +56,17 @@ export const getOtherUserAndGroup = (
     };
   }
 
-  const other = chat?.participants.find((p) => p._id !== currentUserId);
+  if (!("participants" in chat)) {
+    return {
+      name: "Unknown",
+      subheading: "Offline",
+      avatar: "",
+      isGroup: false,
+      isOnline: false,
+    };
+  }
+
+  const other = chat.participants.find((p) => p._id !== currentUserId);
   const isOnline = isUserOnline(other?._id ?? "", isMounted);
 
   return {

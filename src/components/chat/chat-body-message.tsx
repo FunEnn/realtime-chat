@@ -23,6 +23,41 @@ const ChatBodyMessage = memo(({ message, onReply }: Props) => {
   const isCurrentUser = message.sender?._id === userId;
   const senderName = isCurrentUser ? "You" : message.sender?.name;
 
+  const handleTouchStart = useCallback(() => {
+    isLongPressRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      onReply(message);
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 500);
+  }, [message, onReply]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handleTouchCancel = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  if (message.isSystemMessage) {
+    return (
+      <div className="flex justify-center py-2 px-4">
+        <div className="text-xs sm:text-sm text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
+          {message.content}
+        </div>
+      </div>
+    );
+  }
+
   const replySendername =
     message.replyTo?.sender?._id === userId
       ? "You"
@@ -51,31 +86,6 @@ const ChatBodyMessage = memo(({ message, onReply }: Props) => {
       ? "bg-primary/20 border-l-primary"
       : "bg-gray-200 dark:bg-secondary border-l-[#CC4A31]",
   );
-
-  const handleTouchStart = useCallback(() => {
-    isLongPressRef.current = false;
-    longPressTimerRef.current = setTimeout(() => {
-      isLongPressRef.current = true;
-      onReply(message);
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-    }, 500);
-  }, [message, onReply]);
-
-  const handleTouchEnd = useCallback(() => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  }, []);
-
-  const handleTouchCancel = useCallback(() => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  }, []);
 
   return (
     <div className={containerClass}>

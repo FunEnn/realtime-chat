@@ -165,14 +165,6 @@ export function useAuth() {
     isLoading: !clerkLoaded || isLoading,
     isAuthenticated: isSignedIn && !!user,
     logout,
-    // 保持与旧API的兼容性
-    isLoggingIn: false,
-    isSigningUp: false,
-    isAuthStatusLoading: !clerkLoaded || isLoading,
-    refreshAuthStatus: async () => {
-      if (clerkUser) {
-        await syncUserWithBackend(clerkUser);
-      }
-    },
+    setUser,
   };
 }

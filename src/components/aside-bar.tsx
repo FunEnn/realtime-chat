@@ -14,8 +14,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import ProfileSettingsDialog from "./user/profile-settings-dialog";
 
 const AsideBar = () => {
   const { user, logout } = useAuth();
@@ -75,7 +77,7 @@ const AsideBar = () => {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="w-48 rounded-lg z-[99999]"
+              className="w-56 rounded-lg z-[99999]"
               align="end"
               side="right"
             >
@@ -85,8 +87,24 @@ const AsideBar = () => {
                   <span className="text-xs text-muted-foreground font-normal">
                     {user?.email}
                   </span>
+                  {user?.bio && (
+                    <span className="text-xs text-muted-foreground font-normal mt-1 line-clamp-2">
+                      {user.bio}
+                    </span>
+                  )}
                 </div>
               </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <ProfileSettingsDialog
+                trigger={
+                  <DropdownMenuItem
+                    onSelect={(e) => e.preventDefault()}
+                    className="cursor-pointer"
+                  >
+                    Edit Profile
+                  </DropdownMenuItem>
+                }
+              />
               <DropdownMenuItem onClick={logout} className="cursor-pointer">
                 Logout
               </DropdownMenuItem>

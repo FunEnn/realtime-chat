@@ -37,14 +37,13 @@ export const useSocket = create<SocketState>()((set, get) => ({
     const token = getAuthToken();
     if (!token) return;
 
-    const socketConfig: any = {
+    const socketConfig = {
       withCredentials: true,
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
       reconnectionDelay: RECONNECT_DELAY,
       auth: async (cb: (data: { token: string }) => void) => {
-        // Get fresh token on each connection/reconnection
         const freshToken = getAuthToken();
         cb({ token: freshToken || token });
       },
@@ -58,12 +57,10 @@ export const useSocket = create<SocketState>()((set, get) => ({
     set({ socket: newSocket, reconnectAttempts: 0 });
 
     newSocket.on("connect", () => {
-      console.log("Socket connected", newSocket.id);
       set({ isConnected: true, reconnectAttempts: 0 });
     });
 
-    newSocket.on("disconnect", (reason) => {
-      console.log("Socket disconnected:", reason);
+    newSocket.on("disconnect", (_reason) => {
       set({ isConnected: false });
     });
 

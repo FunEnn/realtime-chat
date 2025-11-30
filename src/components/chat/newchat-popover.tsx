@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { memo, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useChat } from "@/hooks/use-chat";
+import { useAuth } from "@/hooks/use-clerk-auth";
 import type { UserType } from "@/types/auth.type";
 import AvatarWithBadge from "../avatar-with-badge";
+import CreatePublicRoomDialog from "../public-room/create-public-room-dialog";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import {
@@ -20,9 +22,11 @@ import { ImageCropDialog } from "./image-crop-dialog";
 
 export const NewChatPopover = memo(() => {
   const router = useRouter();
+  const { user } = useAuth();
   const { fetchAllUsers, users, isUsersLoading, createChat, isCreatingChat } =
     useChat();
 
+  const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isGroupMode, setIsGroupMode] = useState(false);
   const [groupName, setGroupName] = useState("");
@@ -31,6 +35,10 @@ export const NewChatPopover = memo(() => {
   const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [tempImageSrc, setTempImageSrc] = useState<string>("");
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -181,6 +189,14 @@ export const NewChatPopover = memo(() => {
     }
   };
 
+  if (!isMounted) {
+    return (
+      <Button variant="ghost" size="icon" className="h-8 w-8">
+        <PenBox className="!h-5 !w-5 !stroke-1" />
+      </Button>
+    );
+  }
+
   return (
     <>
       <Popover open={isOpen} onOpenChange={handleOpenChange}>
@@ -271,6 +287,21 @@ export const NewChatPopover = memo(() => {
                   disabled={isCreatingChat}
                   onClick={() => setIsGroupMode(true)}
                 />
+                {user?.isAdmin && (
+                  <CreatePublicRoomDialog
+                    trigger={
+                      <button
+                        type="button"
+                        className="w-full flex items-center gap-2 p-2 rounded-sm hover:bg-accent transition-colors text-left"
+                      >
+                        <div className="bg-primary/10 p-2 rounded-full">
+                          <Users className="size-4 text-primary" />
+                        </div>
+                        <span>New Public Room</span>
+                      </button>
+                    }
+                  />
+                )}
                 {users?.map((user) => (
                   <ChatUserItem
                     key={user._id}
@@ -336,7 +367,9 @@ const UserAvatar = memo(({ user }: { user: UserType }) => (
     <AvatarWithBadge name={user.name} src={user.avatar ?? undefined} />
     <div className="flex-1 min-w-0">
       <h5 className="text-[13.5px] font-medium truncate">{user.name}</h5>
-      <p className="text-xs text-muted-foreground">Hey there! I'm using chat</p>
+      <p className="text-xs text-muted-foreground truncate">
+        {user.bio || "Hey there! I'm using chat"}
+      </p>
     </div>
   </>
 ));

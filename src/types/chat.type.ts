@@ -7,6 +7,7 @@ export type MessageType = {
   image: string | null;
   sender: UserType | null;
   replyTo: MessageType | null;
+  isSystemMessage?: boolean;
   createdAt: string;
   updatedAt: string;
   status?: string;
@@ -25,6 +26,24 @@ export type ChatType = {
   unreadCount?: number;
   createdAt: string;
   updatedAt: string;
+};
+
+export type PublicRoomChatType = {
+  _id: string;
+  lastMessage: MessageType | null;
+  isGroup: boolean;
+  isAiChat: boolean;
+  createdBy: string;
+  groupName?: string;
+  groupAvatar?: string;
+  unreadCount?: number;
+  createdAt: string;
+  updatedAt: string;
+  name: string;
+  description: string;
+  avatar?: string;
+  members: string[];
+  memberCount: number;
 };
 
 export type CreateChatInput = {

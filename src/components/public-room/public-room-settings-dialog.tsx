@@ -1,6 +1,7 @@
 "use client";
 
 import { Pencil, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { memo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,30 +16,40 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { useChat } from "@/hooks/use-chat";
-import { ImageCropDialog } from "./image-crop-dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { usePublicRoom } from "@/hooks/use-public-room";
+import { ImageCropDialog } from "../chat/image-crop-dialog";
 
-interface GroupSettingsDialogProps {
-  chatId: string;
-  currentGroupName: string;
-  currentGroupAvatar?: string;
+interface PublicRoomSettingsDialogProps {
+  roomId: string;
+  currentRoomName: string;
+  currentDescription?: string;
+  currentAvatar?: string;
   trigger?: React.ReactNode;
 }
 
-export const GroupSettingsDialog = memo(
+export const PublicRoomSettingsDialog = memo(
   ({
-    chatId,
-    currentGroupName,
-    currentGroupAvatar,
+    roomId,
+    currentRoomName,
+    currentDescription,
+    currentAvatar,
     trigger,
-  }: GroupSettingsDialogProps) => {
-    const { updateGroupInfo, isUpdatingGroup, deleteGroupChat } = useChat();
+  }: PublicRoomSettingsDialogProps) => {
+    const router = useRouter();
+    const {
+      updatePublicRoom,
+      isUpdating,
+      deletePublicRoom,
+      clearCurrentRoom,
+      leaveRoom,
+    } = usePublicRoom();
     const [open, setOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [groupName, setGroupName] = useState(currentGroupName);
-    const [groupAvatar, setGroupAvatar] = useState<string | null>(
-      currentGroupAvatar || null,
-    );
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [name, setName] = useState(currentRoomName);
+    const [description, setDescription] = useState(currentDescription || "");
+    const [avatar, setAvatar] = useState<string | null>(currentAvatar || null);
     const [cropDialogOpen, setCropDialogOpen] = useState(false);
     const [tempImageSrc, setTempImageSrc] = useState<string>("");
 
@@ -116,42 +127,56 @@ export const GroupSettingsDialog = memo(
     };
 
     const handleCropComplete = (croppedImage: string) => {
-      setGroupAvatar(croppedImage);
+      setAvatar(croppedImage);
       toast.success("Avatar uploaded successfully");
     };
 
     const handleSave = async () => {
-      if (!groupName.trim()) {
-        toast.error("Group name cannot be empty");
+      if (!name.trim()) {
+        toast.error("Room name cannot be empty");
         return;
       }
 
-      const success = await updateGroupInfo(chatId, {
-        groupName: groupName.trim(),
-        groupAvatar: groupAvatar || undefined,
+      const success = await updatePublicRoom(roomId, {
+        name: name.trim(),
+        description: description.trim(),
+        avatar: avatar || undefined,
       });
 
       if (success) {
-        toast.success("Group settings updated successfully");
+        toast.success("Room settings updated successfully");
         setOpen(false);
       }
     };
 
     const handleOpenChange = (newOpen: boolean) => {
       if (!newOpen) {
-        setGroupName(currentGroupName);
-        setGroupAvatar(currentGroupAvatar || null);
+        setName(currentRoomName);
+        setDescription(currentDescription || "");
+        setAvatar(currentAvatar || null);
         setShowDeleteConfirm(false);
       }
       setOpen(newOpen);
     };
 
     const handleDelete = async () => {
-      const success = await deleteGroupChat(chatId);
-      if (success) {
-        setOpen(false);
-        // 导航回聊天列表
-        window.location.href = "/chat";
+      setIsDeleting(true);
+      try {
+        // 先离开房间（Socket）
+        await leaveRoom(roomId);
+
+        // 再删除房间
+        const success = await deletePublicRoom(roomId);
+        if (success) {
+          setOpen(false);
+          clearCurrentRoom();
+          // 导航回聊天列表
+          router.push("/chat");
+        }
+      } catch (error) {
+        console.error("Delete room error:", error);
+      } finally {
+        setIsDeleting(false);
       }
     };
 
@@ -160,8 +185,8 @@ export const GroupSettingsDialog = memo(
         <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             {trigger || (
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Pencil className="h-4 w-4" />
+              <Button variant="ghost" size="icon">
+                <Pencil className="w-5 h-5" />
               </Button>
             )}
           </DialogTrigger>
@@ -170,16 +195,16 @@ export const GroupSettingsDialog = memo(
             aria-describedby={undefined}
           >
             <DialogHeader>
-              <DialogTitle>Group Settings</DialogTitle>
+              <DialogTitle>Room Settings</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="flex flex-col items-center gap-4">
-                <label htmlFor="group-avatar-edit" className="cursor-pointer">
+                <label htmlFor="room-avatar-edit" className="cursor-pointer">
                   <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden hover:bg-primary/20 transition-colors">
-                    {groupAvatar ? (
+                    {avatar ? (
                       <img
-                        src={groupAvatar}
-                        alt="Group avatar"
+                        src={avatar}
+                        alt="Room avatar"
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -188,43 +213,65 @@ export const GroupSettingsDialog = memo(
                   </div>
                 </label>
                 <input
-                  id="group-avatar-edit"
+                  id="room-avatar-edit"
                   type="file"
                   accept="image/*"
                   onChange={handleAvatarChange}
                   className="hidden"
                 />
                 <p className="text-sm text-muted-foreground">
-                  Click to change group avatar
+                  Click to change room avatar
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="group-name">Group Name</Label>
+                <Label htmlFor="room-name">Room Name</Label>
                 <Input
-                  id="group-name"
-                  value={groupName}
-                  onChange={(e) => setGroupName(e.target.value)}
-                  placeholder="Enter group name"
+                  id="room-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter room name"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="room-description">Description</Label>
+                <Textarea
+                  id="room-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Enter room description"
+                  maxLength={500}
+                  rows={4}
+                  className="resize-none"
+                />
+                <p className="text-xs text-muted-foreground text-right">
+                  {description.length}/500 characters
+                </p>
               </div>
             </div>
 
             {showDeleteConfirm ? (
               <div className="border-t pt-4">
                 <p className="text-sm text-destructive mb-4">
-                  Are you sure you want to delete this group? This action cannot
+                  Are you sure you want to delete this room? This action cannot
                   be undone. All messages will be permanently deleted.
                 </p>
                 <DialogFooter>
                   <Button
                     variant="outline"
                     onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeleting}
                   >
                     Cancel
                   </Button>
-                  <Button variant="destructive" onClick={handleDelete}>
-                    Delete Group
+                  <Button
+                    variant="destructive"
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting && <Spinner className="w-4 h-4 mr-2" />}
+                    Delete Room
                   </Button>
                 </DialogFooter>
               </div>
@@ -233,23 +280,23 @@ export const GroupSettingsDialog = memo(
                 <Button
                   variant="destructive"
                   onClick={() => setShowDeleteConfirm(true)}
-                  disabled={isUpdatingGroup}
+                  disabled={isUpdating || isDeleting}
                 >
-                  Delete Group
+                  Delete Room
                 </Button>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     onClick={() => handleOpenChange(false)}
-                    disabled={isUpdatingGroup}
+                    disabled={isUpdating}
                   >
                     Cancel
                   </Button>
                   <Button
                     onClick={handleSave}
-                    disabled={isUpdatingGroup || !groupName.trim()}
+                    disabled={isUpdating || !name.trim()}
                   >
-                    {isUpdatingGroup && <Spinner className="w-4 h-4 mr-2" />}
+                    {isUpdating && <Spinner className="w-4 h-4 mr-2" />}
                     Save Changes
                   </Button>
                 </div>
@@ -270,4 +317,4 @@ export const GroupSettingsDialog = memo(
   },
 );
 
-GroupSettingsDialog.displayName = "GroupSettingsDialog";
+PublicRoomSettingsDialog.displayName = "PublicRoomSettingsDialog";

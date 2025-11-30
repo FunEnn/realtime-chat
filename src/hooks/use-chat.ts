@@ -32,13 +32,17 @@ interface ChatState {
   fetchAllUsers: () => Promise<void>;
   fetchChats: () => Promise<void>;
   createChat: (payload: CreateChatType) => Promise<ChatType | null>;
-  fetchSingleChat: (chatId: string) => Promise<void>;
+  fetchSingleChat: (
+    chatId: string,
+    options?: { silent?: boolean },
+  ) => Promise<void>;
   fetchChatHistory: (chatId: string) => Promise<MessageType[]>;
   sendMessage: (payload: CreateMessageType) => Promise<void>;
   updateGroupInfo: (
     chatId: string,
     payload: { groupName?: string; groupAvatar?: string },
   ) => Promise<boolean>;
+  deleteGroupChat: (chatId: string) => Promise<boolean>;
   addNewChat: (chat: ChatType) => void;
   updateChatLastMessage: (chatId: string, lastMessage: MessageType) => void;
   addNewMessage: (chatId: string, message: MessageType) => void;
@@ -114,7 +118,7 @@ export const useChat = create<ChatState>()((set, get) => ({
     }
   },
 
-  fetchSingleChat: async (chatId) => {
+  fetchSingleChat: async (chatId, options?: { silent?: boolean }) => {
     set({ isSingleChatLoading: true, singleChat: null });
     try {
       const { data } = await API.get<SingleChatState>(`/chat/${chatId}`);
@@ -134,8 +138,11 @@ export const useChat = create<ChatState>()((set, get) => ({
       }
     } catch (error) {
       console.error("Fetch single chat error:", error);
-      toast.error(getErrorMessage(error, "Failed to fetch chat"));
+      if (!options?.silent) {
+        toast.error(getErrorMessage(error, "Failed to fetch chat"));
+      }
       set({ singleChat: null });
+      throw error; // 重新抛出错误以便调用者处理
     } finally {
       set({ isSingleChatLoading: false });
     }
@@ -343,6 +350,24 @@ export const useChat = create<ChatState>()((set, get) => ({
       return false;
     } finally {
       set({ isUpdatingGroup: false });
+    }
+  },
+
+  deleteGroupChat: async (chatId) => {
+    try {
+      await API.delete(`/chat/${chatId}`);
+
+      // 从列表中移除
+      set((state) => ({
+        chats: state.chats.filter((chat) => chat._id !== chatId),
+      }));
+
+      toast.success("Group chat deleted successfully");
+      return true;
+    } catch (error) {
+      console.error("Delete group chat error:", error);
+      toast.error(getErrorMessage(error, "Failed to delete group chat"));
+      return false;
     }
   },
 }));

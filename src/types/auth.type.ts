@@ -15,6 +15,8 @@ export type UserType = {
   name: string;
   email: string;
   avatar: string | null;
+  bio?: string;
+  isAdmin?: boolean;
   isAI?: boolean;
   createdAt: string;
   updatedAt: string;
