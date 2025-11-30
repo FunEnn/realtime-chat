@@ -21,6 +21,8 @@ export type ChatType = {
   isAiChat: boolean;
   createdBy: string;
   groupName?: string;
+  groupAvatar?: string;
+  unreadCount?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -30,6 +32,7 @@ export type CreateChatInput = {
   participants?: string[];
   isGroup?: boolean;
   groupName?: string;
+  groupAvatar?: string;
 };
 
 export type CreateChatType = CreateChatInput;

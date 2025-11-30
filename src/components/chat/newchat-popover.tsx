@@ -3,6 +3,7 @@
 import { ArrowLeft, PenBox, Search, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { memo, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useChat } from "@/hooks/use-chat";
 import type { UserType } from "@/types/auth.type";
 import AvatarWithBadge from "../avatar-with-badge";
@@ -15,6 +16,7 @@ import {
 } from "../ui/input-group";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Spinner } from "../ui/spinner";
+import { ImageCropDialog } from "./image-crop-dialog";
 
 export const NewChatPopover = memo(() => {
   const router = useRouter();
@@ -24,8 +26,11 @@ export const NewChatPopover = memo(() => {
   const [isOpen, setIsOpen] = useState(false);
   const [isGroupMode, setIsGroupMode] = useState(false);
   const [groupName, setGroupName] = useState("");
+  const [groupAvatar, setGroupAvatar] = useState<string | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [tempImageSrc, setTempImageSrc] = useState<string>("");
 
   useEffect(() => {
     if (isOpen) {
@@ -48,14 +53,97 @@ export const NewChatPopover = memo(() => {
   const resetState = () => {
     setIsGroupMode(false);
     setGroupName("");
+    setGroupAvatar(null);
     setSelectedUsers([]);
   };
 
   const handleOpenChange = (open: boolean) => {
+    // 如果裁剪对话框打开中，不关闭Popover
+    if (!open && cropDialogOpen) {
+      return;
+    }
     setIsOpen(open);
     if (!open) {
       resetState();
     }
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    try {
+      toast.loading("Processing image...");
+
+      // 直接压缩图片，不限制文件大小
+      const compressed = await compressImageForCrop(file);
+
+      toast.dismiss();
+      setTempImageSrc(compressed);
+      setCropDialogOpen(true);
+    } catch (error) {
+      toast.dismiss();
+      console.error("Image processing failed:", error);
+      toast.error("Failed to process image. Please try a different image.");
+    }
+
+    e.target.value = "";
+  };
+
+  const compressImageForCrop = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let { width, height } = img;
+
+          // 计算合适的尺寸（最大边不超过2048px）
+          const maxDimension = 2048;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = (height * maxDimension) / width;
+              width = maxDimension;
+            } else {
+              width = (width * maxDimension) / height;
+              height = maxDimension;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            reject(new Error("Failed to get canvas context"));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // 转换为base64，质量为0.9
+          const compressed = canvas.toDataURL("image/jpeg", 0.9);
+          resolve(compressed);
+        };
+        img.onerror = () => reject(new Error("Failed to load image"));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleCropComplete = (croppedImage: string) => {
+    setGroupAvatar(croppedImage);
+    toast.success("Avatar uploaded successfully");
+    // 确保Popover保持打开
+    setIsOpen(true);
   };
 
   const handleCreateGroup = async () => {
@@ -65,6 +153,7 @@ export const NewChatPopover = memo(() => {
       isGroup: true,
       participants: selectedUsers,
       groupName: groupName,
+      groupAvatar: groupAvatar || undefined,
     });
 
     if (response) {
@@ -93,104 +182,150 @@ export const NewChatPopover = memo(() => {
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <Button
-          onClick={() => setIsOpen(true)}
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
+    <>
+      <Popover open={isOpen} onOpenChange={handleOpenChange}>
+        <PopoverTrigger asChild>
+          <Button
+            onClick={() => setIsOpen(true)}
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+          >
+            <PenBox className="!h-5 !w-5 !stroke-1" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          className="w-80 z-[999] p-0 rounded-xl min-h-[400px] max-h-[80vh] flex flex-col"
         >
-          <PenBox className="!h-5 !w-5 !stroke-1" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-80 z-[999] p-0 rounded-xl min-h-[400px] max-h-[80vh] flex flex-col"
-      >
-        <div className="border-b p-3 flex flex-col gap-2">
-          <div className="flex items-center gap-2">
+          <div className="border-b p-3 flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              {isGroupMode && (
+                <Button variant="ghost" size="icon" onClick={handleBack}>
+                  <ArrowLeft size={16} />
+                </Button>
+              )}
+              <h3 className="text-lg font-semibold">
+                {isGroupMode ? "New Group" : "New Chat"}
+              </h3>
+            </div>
+
             {isGroupMode && (
-              <Button variant="ghost" size="icon" onClick={handleBack}>
-                <ArrowLeft size={16} />
-              </Button>
+              <div className="flex items-center gap-3">
+                <label htmlFor="group-avatar" className="cursor-pointer">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden hover:bg-primary/20 transition-colors">
+                    {groupAvatar ? (
+                      <img
+                        src={groupAvatar}
+                        alt="Group avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Users className="w-8 h-8 text-primary" />
+                    )}
+                  </div>
+                </label>
+                <input
+                  id="group-avatar"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                />
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">
+                    Click to upload group avatar
+                  </p>
+                </div>
+              </div>
             )}
-            <h3 className="text-lg font-semibold">
-              {isGroupMode ? "New Group" : "New Chat"}
-            </h3>
+
+            <InputGroup>
+              {isGroupMode ? (
+                <InputGroupInput
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  placeholder="Enter group name"
+                />
+              ) : (
+                <InputGroupInput placeholder="Search name" value="" readOnly />
+              )}
+              <InputGroupAddon>
+                {isGroupMode ? <Users /> : <Search />}
+              </InputGroupAddon>
+            </InputGroup>
           </div>
 
-          <InputGroup>
-            {isGroupMode ? (
-              <InputGroupInput
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                placeholder="Enter group name"
-              />
+          <div className="flex-1 justify-center overflow-y-auto px-1 py-1 space-y-1">
+            {isUsersLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <Spinner className="w-6 h-6" />
+              </div>
+            ) : users && users?.length === 0 ? (
+              <div className="text-center text-muted-foreground p-4">
+                No users found
+              </div>
+            ) : !isGroupMode ? (
+              <>
+                <NewGroupItem
+                  disabled={isCreatingChat}
+                  onClick={() => setIsGroupMode(true)}
+                />
+                {users?.map((user) => (
+                  <ChatUserItem
+                    key={user._id}
+                    user={user}
+                    isLoading={loadingUserId === user._id}
+                    disabled={loadingUserId !== null}
+                    onClick={handleCreateChat}
+                  />
+                ))}
+              </>
             ) : (
-              <InputGroupInput placeholder="Search name" value="" readOnly />
-            )}
-            <InputGroupAddon>
-              {isGroupMode ? <Users /> : <Search />}
-            </InputGroupAddon>
-          </InputGroup>
-        </div>
-
-        <div className="flex-1 justify-center overflow-y-auto px-1 py-1 space-y-1">
-          {isUsersLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <Spinner className="w-6 h-6" />
-            </div>
-          ) : users && users?.length === 0 ? (
-            <div className="text-center text-muted-foreground p-4">
-              No users found
-            </div>
-          ) : !isGroupMode ? (
-            <>
-              <NewGroupItem
-                disabled={isCreatingChat}
-                onClick={() => setIsGroupMode(true)}
-              />
-              {users?.map((user) => (
-                <ChatUserItem
+              users?.map((user) => (
+                <GroupUserItem
                   key={user._id}
                   user={user}
-                  isLoading={loadingUserId === user._id}
-                  disabled={loadingUserId !== null}
-                  onClick={handleCreateChat}
+                  isSelected={selectedUsers.includes(user._id)}
+                  onToggle={toggleUserSelection}
                 />
-              ))}
-            </>
-          ) : (
-            users?.map((user) => (
-              <GroupUserItem
-                key={user._id}
-                user={user}
-                isSelected={selectedUsers.includes(user._id)}
-                onToggle={toggleUserSelection}
-              />
-            ))
-          )}
-        </div>
-
-        {isGroupMode && (
-          <div className="border-t p-3">
-            <Button
-              onClick={handleCreateGroup}
-              className="w-full"
-              disabled={
-                isCreatingChat ||
-                !groupName.trim() ||
-                selectedUsers.length === 0
-              }
-            >
-              {isCreatingChat && <Spinner className="w-4 h-4 mr-2" />}
-              Create Group
-            </Button>
+              ))
+            )}
           </div>
-        )}
-      </PopoverContent>
-    </Popover>
+
+          {isGroupMode && (
+            <div className="border-t p-3">
+              <Button
+                onClick={handleCreateGroup}
+                className="w-full"
+                disabled={
+                  isCreatingChat ||
+                  !groupName.trim() ||
+                  selectedUsers.length === 0
+                }
+              >
+                {isCreatingChat && <Spinner className="w-4 h-4 mr-2" />}
+                Create Group
+              </Button>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+
+      <ImageCropDialog
+        open={cropDialogOpen}
+        onOpenChange={(open) => {
+          setCropDialogOpen(open);
+          // 裁剪对话框关闭后，恢复Popover打开状态
+          if (!open) {
+            setIsOpen(true);
+          }
+        }}
+        imageSrc={tempImageSrc}
+        onCropComplete={handleCropComplete}
+        aspectRatio={1}
+      />
+    </>
   );
 });
 

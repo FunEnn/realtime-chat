@@ -1,7 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
+import { useSocket } from "@/hooks/use-socket";
 import { formatChatTime, getOtherUserAndGroup } from "@/lib/helper";
 import { cn } from "@/lib/utils";
 import type { ChatType } from "@/types/chat.type";
@@ -16,11 +17,22 @@ interface PropsType {
 const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
   const pathname = usePathname();
   const { lastMessage, createdAt } = chat;
+  const [isMounted, setIsMounted] = useState(false);
+  const _onlineUsers = useSocket((state) => state.onlineUsers);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const { name, avatar, isOnline, isGroup } = useMemo(
-    () => getOtherUserAndGroup(chat, currentUserId),
-    [chat, currentUserId],
+    () => getOtherUserAndGroup(chat, currentUserId, isMounted),
+    [chat, currentUserId, isMounted],
   );
+
+  // 格式化时间（仅在客户端）
+  const formattedTime = isMounted
+    ? formatChatTime(lastMessage?.updatedAt || createdAt)
+    : "";
 
   const getLastMessageText = () => {
     if (!lastMessage) {
@@ -43,31 +55,62 @@ const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
     return lastMessage.content;
   };
 
+  const unreadCount = chat.unreadCount || 0;
+  const hasUnread = unreadCount > 0;
+
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full flex items-center gap-2 p-1.5 md:p-2 rounded-sm hover:bg-sidebar-accent transition-colors text-left",
+        "w-full flex items-center gap-2 p-1.5 md:p-2 rounded-sm hover:bg-sidebar-accent transition-colors text-left relative",
         pathname.includes(chat._id) && "!bg-sidebar-accent",
       )}
     >
-      <AvatarWithBadge
-        name={name}
-        src={avatar}
-        isGroup={isGroup}
-        isOnline={isOnline}
-        size="w-10 h-10 md:w-11 md:h-11"
-      />
+      <div className="relative">
+        <AvatarWithBadge
+          name={name}
+          src={avatar}
+          isGroup={isGroup}
+          isOnline={isOnline}
+          size="w-10 h-10 md:w-11 md:h-11"
+        />
+        {hasUnread && (
+          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-semibold text-white bg-red-500 rounded-full border-2 border-background">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-0.5">
-          <h5 className="text-xs md:text-sm font-semibold truncate">{name}</h5>
-          <span className="text-[10px] md:text-xs ml-2 shrink-0 text-muted-foreground">
-            {formatChatTime(lastMessage?.updatedAt || createdAt)}
-          </span>
+          <h5
+            className={cn(
+              "text-xs md:text-sm truncate",
+              hasUnread ? "font-bold" : "font-semibold",
+            )}
+          >
+            {name}
+          </h5>
+          {isMounted && (
+            <span
+              className={cn(
+                "text-[10px] md:text-xs ml-2 shrink-0",
+                hasUnread
+                  ? "text-foreground font-semibold"
+                  : "text-muted-foreground",
+              )}
+            >
+              {formattedTime}
+            </span>
+          )}
         </div>
-        <p className="text-[10px] md:text-xs truncate text-muted-foreground -mt-px">
+        <p
+          className={cn(
+            "text-[10px] md:text-xs truncate -mt-px",
+            hasUnread ? "text-foreground font-medium" : "text-muted-foreground",
+          )}
+        >
           {getLastMessageText()}
         </p>
       </div>

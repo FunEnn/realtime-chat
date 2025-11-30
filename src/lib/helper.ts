@@ -3,8 +3,8 @@ import { v4 as uuidv4 } from "uuid";
 import { useSocket } from "@/hooks/use-socket";
 import type { ChatType } from "@/types/chat.type";
 
-export const isUserOnline = (userId?: string) => {
-  if (!userId) return false;
+export const isUserOnline = (userId?: string, isMounted: boolean = true) => {
+  if (!userId || !isMounted) return false;
   const { onlineUsers } = useSocket.getState();
   return onlineUsers.includes(userId);
 };
@@ -12,13 +12,14 @@ export const isUserOnline = (userId?: string) => {
 export const getOtherUserAndGroup = (
   chat: ChatType,
   currentUserId: string | null,
+  isMounted: boolean = true,
 ) => {
   const isGroup = chat?.isGroup;
 
   if (isGroup) {
-    const onlineCount = chat.participants.filter((p) =>
-      isUserOnline(p._id),
-    ).length;
+    const onlineCount = isMounted
+      ? chat.participants.filter((p) => isUserOnline(p._id, isMounted)).length
+      : 0;
     const totalMembers = chat.participants.length;
 
     return {
@@ -27,7 +28,7 @@ export const getOtherUserAndGroup = (
         onlineCount > 0
           ? `${onlineCount} online • ${totalMembers} members`
           : `${totalMembers} members`,
-      avatar: "",
+      avatar: chat.groupAvatar || "",
       isGroup,
       onlineCount,
       totalMembers,
@@ -35,7 +36,7 @@ export const getOtherUserAndGroup = (
   }
 
   const other = chat?.participants.find((p) => p._id !== currentUserId);
-  const isOnline = isUserOnline(other?._id ?? "");
+  const isOnline = isUserOnline(other?._id ?? "", isMounted);
 
   return {
     name: other?.name || "Unknown",

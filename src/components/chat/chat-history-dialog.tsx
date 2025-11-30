@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { ArrowLeft, Calendar, Search, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +35,22 @@ export default function ChatHistoryDialog({
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
   const activeChatId = selectedChatId || chatId;
+
+  // 安全的日期格式化函数
+  const safeFormatDate = useCallback(
+    (dateString: string | undefined, formatStr: string): string | null => {
+      if (!dateString) return null;
+      try {
+        const date = new Date(dateString);
+        if (Number.isNaN(date.getTime())) return null;
+        return format(date, formatStr);
+      } catch (error) {
+        console.error("Invalid date:", dateString, error);
+        return null;
+      }
+    },
+    [],
+  );
 
   // 获取选中聊天室的历史消息
   useEffect(() => {
@@ -98,7 +114,7 @@ export default function ChatHistoryDialog({
         const matchesDate =
           !dateFilter ||
           (message.createdAt &&
-            format(new Date(message.createdAt), "yyyy-MM-dd") === dateFilter);
+            safeFormatDate(message.createdAt, "yyyy-MM-dd") === dateFilter);
 
         return matchesSearch && matchesDate;
       }
@@ -118,11 +134,11 @@ export default function ChatHistoryDialog({
       const matchesDate =
         !dateFilter ||
         (lastMessage?.createdAt &&
-          format(new Date(lastMessage.createdAt), "yyyy-MM-dd") === dateFilter);
+          safeFormatDate(lastMessage.createdAt, "yyyy-MM-dd") === dateFilter);
 
       return matchesSearch && matchesDate;
     });
-  }, [allHistory, searchQuery, dateFilter]);
+  }, [allHistory, searchQuery, dateFilter, safeFormatDate]);
 
   // 按日期分组
   const groupedHistory = useMemo(() => {
@@ -133,11 +149,12 @@ export default function ChatHistoryDialog({
 
       if (item.type === "message") {
         date = item.message.createdAt
-          ? format(new Date(item.message.createdAt), "yyyy-MM-dd")
+          ? safeFormatDate(item.message.createdAt, "yyyy-MM-dd") || "No date"
           : "No date";
       } else {
         date = item.lastMessage?.createdAt
-          ? format(new Date(item.lastMessage.createdAt), "yyyy-MM-dd")
+          ? safeFormatDate(item.lastMessage.createdAt, "yyyy-MM-dd") ||
+            "No messages"
           : "No messages";
       }
 
@@ -148,7 +165,7 @@ export default function ChatHistoryDialog({
     });
 
     return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
-  }, [filteredHistory]);
+  }, [filteredHistory, safeFormatDate]);
 
   const getChatName = (chat: ChatType) => {
     if (chat.isGroup) {
@@ -168,7 +185,10 @@ export default function ChatHistoryDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-[92vw] sm:max-w-[85vw] md:max-w-2xl max-h-[90vh] md:max-h-[85vh] p-3 sm:p-4 md:p-6 gap-3 md:gap-4">
+      <DialogContent
+        className="max-w-[92vw] sm:max-w-[85vw] md:max-w-2xl max-h-[90vh] md:max-h-[85vh] p-3 sm:p-4 md:p-6 gap-3 md:gap-4"
+        aria-describedby={undefined}
+      >
         <DialogHeader className="space-y-1">
           <div className="flex items-center gap-2">
             {selectedChatId && !chatId && (
@@ -251,7 +271,7 @@ export default function ChatHistoryDialog({
                   <h3 className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase mb-1 sm:mb-1.5 md:mb-2 sticky top-0 bg-background py-0.5 sm:py-1">
                     {date === "No messages" || date === "No date"
                       ? date
-                      : format(new Date(date), "MMMM dd, yyyy")}
+                      : safeFormatDate(date, "MMMM dd, yyyy") || date}
                   </h3>
                   <div className="space-y-1 sm:space-y-1.5 md:space-y-2">
                     {items.map((item) => {
@@ -266,10 +286,10 @@ export default function ChatHistoryDialog({
                                 {item.message.sender?.name || "Unknown"}
                               </h4>
                               <span className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground whitespace-nowrap ml-2">
-                                {format(
-                                  new Date(item.message.createdAt),
+                                {safeFormatDate(
+                                  item.message.createdAt,
                                   "HH:mm",
-                                )}
+                                ) || "--:--"}
                               </span>
                             </div>
                             {item.message.image && (
@@ -327,10 +347,10 @@ export default function ChatHistoryDialog({
                             </h4>
                             {item.lastMessage && (
                               <span className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground whitespace-nowrap ml-2">
-                                {format(
-                                  new Date(item.lastMessage.createdAt),
+                                {safeFormatDate(
+                                  item.lastMessage.createdAt,
                                   "HH:mm",
-                                )}
+                                ) || "--:--"}
                               </span>
                             )}
                           </div>

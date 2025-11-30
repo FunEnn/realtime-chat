@@ -2,12 +2,14 @@
 
 import { ArrowLeft, History } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useSocket } from "@/hooks/use-socket";
 import { getOtherUserAndGroup } from "@/lib/helper";
 import type { ChatType } from "@/types/chat.type";
 import AvatarWithBadge from "../avatar-with-badge";
 import ChatHistoryDialog from "./chat-history-dialog";
+import { GroupSettingsDialog } from "./group-settings-dialog";
 
 interface ChatHeaderProps {
   chat: ChatType;
@@ -17,6 +19,13 @@ interface ChatHeaderProps {
 const ChatHeader = memo(({ chat, currentUserId }: ChatHeaderProps) => {
   const router = useRouter();
   const [_isLeaving, setIsLeaving] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const _onlineUsers = useSocket((state) => state.onlineUsers);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const {
     name,
     subheading,
@@ -26,9 +35,15 @@ const ChatHeader = memo(({ chat, currentUserId }: ChatHeaderProps) => {
     onlineCount,
     totalMembers,
   } = useMemo(
-    () => getOtherUserAndGroup(chat, currentUserId),
-    [chat, currentUserId],
+    () => getOtherUserAndGroup(chat, currentUserId, isMounted),
+    [chat, currentUserId, isMounted],
   );
+
+  // 检查当前用户是否为群聊创建者
+  const isCreator = useMemo(() => {
+    if (!isGroup || !currentUserId || !chat.createdBy) return false;
+    return chat.createdBy.toString() === currentUserId.toString();
+  }, [chat.createdBy, currentUserId, isGroup]);
 
   const handleBack = () => {
     setIsLeaving(true);
@@ -52,12 +67,33 @@ const ChatHeader = memo(({ chat, currentUserId }: ChatHeaderProps) => {
         >
           <ArrowLeft className="w-5 h-5 text-muted-foreground" />
         </button>
-        <AvatarWithBadge
-          name={name}
-          src={avatar}
-          isGroup={isGroup}
-          isOnline={isOnline}
-        />
+        {isGroup && isCreator ? (
+          <GroupSettingsDialog
+            chatId={chat._id}
+            currentGroupName={chat.groupName || ""}
+            currentGroupAvatar={chat.groupAvatar}
+            trigger={
+              <button
+                type="button"
+                className="hover:opacity-80 transition-opacity"
+              >
+                <AvatarWithBadge
+                  name={name}
+                  src={avatar}
+                  isGroup={isGroup}
+                  isOnline={isOnline}
+                />
+              </button>
+            }
+          />
+        ) : (
+          <AvatarWithBadge
+            name={name}
+            src={avatar}
+            isGroup={isGroup}
+            isOnline={isOnline}
+          />
+        )}
         <div className="ml-2 min-w-0 flex-1">
           <h5 className="font-semibold text-sm md:text-base truncate">
             {name}

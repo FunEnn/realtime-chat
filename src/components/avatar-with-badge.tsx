@@ -23,14 +23,17 @@ const AvatarWithBadge = ({
     <div className="relative shrink-0">
       <Avatar className={size}>
         {isGroup ? (
-          <AvatarFallback
-            className={cn(
-              "bg-primary/10 text-primary font-semibold",
-              className,
-            )}
-          >
-            <Users className="w-5 h-5" />
-          </AvatarFallback>
+          <>
+            {src ? <AvatarImage src={src} /> : null}
+            <AvatarFallback
+              className={cn(
+                "bg-primary/10 text-primary font-semibold",
+                className,
+              )}
+            >
+              <Users className="w-5 h-5" />
+            </AvatarFallback>
+          </>
         ) : (
           <>
             <AvatarImage src={src || undefined} />

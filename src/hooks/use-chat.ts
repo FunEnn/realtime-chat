@@ -28,12 +28,17 @@ interface ChatState {
   isCreatingChat: boolean;
   isSingleChatLoading: boolean;
   isSendingMsg: boolean;
+  isUpdatingGroup: boolean;
   fetchAllUsers: () => Promise<void>;
   fetchChats: () => Promise<void>;
   createChat: (payload: CreateChatType) => Promise<ChatType | null>;
   fetchSingleChat: (chatId: string) => Promise<void>;
   fetchChatHistory: (chatId: string) => Promise<MessageType[]>;
   sendMessage: (payload: CreateMessageType) => Promise<void>;
+  updateGroupInfo: (
+    chatId: string,
+    payload: { groupName?: string; groupAvatar?: string },
+  ) => Promise<boolean>;
   addNewChat: (chat: ChatType) => void;
   updateChatLastMessage: (chatId: string, lastMessage: MessageType) => void;
   addNewMessage: (chatId: string, message: MessageType) => void;
@@ -62,6 +67,7 @@ export const useChat = create<ChatState>()((set, get) => ({
   isCreatingChat: false,
   isSingleChatLoading: false,
   isSendingMsg: false,
+  isUpdatingGroup: false,
 
   fetchAllUsers: async () => {
     set({ isUsersLoading: true });
@@ -113,6 +119,19 @@ export const useChat = create<ChatState>()((set, get) => ({
     try {
       const { data } = await API.get<SingleChatState>(`/chat/${chatId}`);
       set({ singleChat: data });
+
+      // 标记聊天为已读
+      try {
+        await API.post(`/chat/${chatId}/mark-read`);
+        // 更新本地聊天列表中的未读数
+        set((state) => ({
+          chats: state.chats.map((chat) =>
+            chat._id === chatId ? { ...chat, unreadCount: 0 } : chat,
+          ),
+        }));
+      } catch (markReadError) {
+        console.error("Mark as read error:", markReadError);
+      }
     } catch (error) {
       console.error("Fetch single chat error:", error);
       toast.error(getErrorMessage(error, "Failed to fetch chat"));
@@ -246,9 +265,24 @@ export const useChat = create<ChatState>()((set, get) => ({
     set((state) => {
       const chat = state.chats.find((c) => c._id === chatId);
       if (!chat) return state;
+
+      const { user } = useAuthStore.getState();
+      const currentUserId = user?._id;
+
+      // 如果不是当前用户发送的消息，且不是当前打开的聊天，增加未读数
+      const isCurrentChat = state.singleChat?.chat._id === chatId;
+      const isSender = lastMessage.sender?._id === currentUserId;
+      const shouldIncrementUnread = !isCurrentChat && !isSender;
+
       return {
         chats: [
-          { ...chat, lastMessage },
+          {
+            ...chat,
+            lastMessage,
+            unreadCount: shouldIncrementUnread
+              ? (chat.unreadCount || 0) + 1
+              : chat.unreadCount,
+          },
           ...state.chats.filter((c) => c._id !== chatId),
         ],
       };
@@ -273,5 +307,42 @@ export const useChat = create<ChatState>()((set, get) => ({
         },
       };
     });
+  },
+
+  updateGroupInfo: async (chatId, payload) => {
+    set({ isUpdatingGroup: true });
+    try {
+      const { data } = await API.patch<{ chat: ChatType }>(
+        `/chat/${chatId}`,
+        payload,
+      );
+
+      set((state) => {
+        const updatedChats = state.chats.map((chat) =>
+          chat._id === chatId ? { ...chat, ...data.chat } : chat,
+        );
+
+        const updatedSingleChat =
+          state.singleChat?.chat._id === chatId
+            ? {
+                chat: { ...state.singleChat.chat, ...data.chat },
+                messages: state.singleChat.messages,
+              }
+            : state.singleChat;
+
+        return {
+          chats: updatedChats,
+          singleChat: updatedSingleChat,
+        };
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Update group info error:", error);
+      toast.error(getErrorMessage(error, "Failed to update group info"));
+      return false;
+    } finally {
+      set({ isUpdatingGroup: false });
+    }
   },
 }));
