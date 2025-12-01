@@ -2,19 +2,24 @@
 
 import { memo } from "react";
 import SharedChatFooter from "@/components/shared/shared-chat-footer";
-import { useChat } from "@/hooks/use-chat";
+import { usePublicRoom } from "@/hooks/use-public-room";
 import type { MessageType } from "@/types/chat.type";
 
-interface ChatFooterProps {
+interface PublicRoomChatFooterProps {
   chatId: string | null;
   currentUserId: string | null;
   replyTo: MessageType | null;
   onCancelReply: () => void;
 }
 
-const ChatFooter = memo(
-  ({ chatId, currentUserId, replyTo, onCancelReply }: ChatFooterProps) => {
-    const { sendMessage, isSendingMsg } = useChat();
+const PublicRoomChatFooter = memo(
+  ({
+    chatId,
+    currentUserId,
+    replyTo,
+    onCancelReply,
+  }: PublicRoomChatFooterProps) => {
+    const { sendMessage, isSendingMsg } = usePublicRoom();
 
     return (
       <SharedChatFooter
@@ -24,11 +29,12 @@ const ChatFooter = memo(
         onCancelReply={onCancelReply}
         isSendingMsg={isSendingMsg}
         sendMessage={sendMessage}
+        showReplyBar={true}
       />
     );
   },
 );
 
-ChatFooter.displayName = "ChatFooter";
+PublicRoomChatFooter.displayName = "PublicRoomChatFooter";
 
-export default ChatFooter;
+export default PublicRoomChatFooter;

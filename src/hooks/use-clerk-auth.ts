@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { useSocket } from "@/hooks/use-socket";
-import { API, setAuthToken } from "@/lib/axios-client";
+import { API, setAuthToken } from "@/lib/api/axios-client";
 import type { UserType } from "@/types/auth.type";
 
 interface ClerkUserData {
@@ -39,7 +39,6 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
     set({ isLoading: true });
     try {
-      // 将Clerk用户信息同步到后端
       const { data } = await API.post<{ user: UserType }>("/auth/clerk-sync", {
         clerkId: clerkUser.id,
         email: clerkUser.primaryEmailAddress?.emailAddress,
@@ -48,10 +47,8 @@ export const useAuthStore = create<AuthState>()((set) => ({
       });
 
       set({ user: data.user });
-      useSocket.getState().connectSocket();
     } catch (error) {
       console.error("Sync with backend failed:", error);
-      // 即使后端同步失败，也创建一个临时用户对象供前端使用
       set({
         user: {
           _id: clerkUser.id,
@@ -64,8 +61,8 @@ export const useAuthStore = create<AuthState>()((set) => ({
             clerkUser.updatedAt?.toString() || new Date().toISOString(),
         },
       });
-      useSocket.getState().connectSocket();
     } finally {
+      useSocket.getState().connectSocket();
       set({ isLoading: false });
     }
   },
@@ -130,7 +127,6 @@ export function useAuth() {
     syncUserWithBackend,
   ]);
 
-  // Refresh token every 30 seconds to prevent expiration
   useEffect(() => {
     if (!isSignedIn) return;
 
@@ -143,7 +139,7 @@ export function useAuth() {
       }
     };
 
-    const interval = setInterval(refreshToken, 30000); // 30 seconds
+    const interval = setInterval(refreshToken, 30000);
     return () => clearInterval(interval);
   }, [isSignedIn, getToken]);
 

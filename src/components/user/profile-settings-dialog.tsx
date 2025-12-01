@@ -14,7 +14,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-clerk-auth";
-import { API } from "@/lib/axios-client";
+import { API } from "@/lib/api/axios-client";
 
 interface ProfileSettingsDialogProps {
   trigger?: React.ReactNode;

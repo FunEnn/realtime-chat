@@ -3,11 +3,11 @@
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { memo, useEffect, useMemo, useState } from "react";
+import AvatarWithBadge from "@/components/shared/avatar-with-badge";
 import { useAuth } from "@/hooks/use-clerk-auth";
-import { useSocket } from "@/hooks/use-socket";
-import { getOtherUserAndGroup } from "@/lib/helper";
+import { useMounted } from "@/hooks/use-mounted";
+import { getOtherUserAndGroup } from "@/lib/utils/user-utils";
 import type { ChatType, PublicRoomChatType } from "@/types/chat.type";
-import AvatarWithBadge from "../avatar-with-badge";
 import { PublicRoomSettingsDialog } from "../public-room/public-room-settings-dialog";
 import ChatHistoryDialog from "./chat-history-dialog";
 import { GroupSettingsDialog } from "./group-settings-dialog";
@@ -27,13 +27,7 @@ const ChatHeader = memo(
     isPublicRoom = false,
   }: ChatHeaderProps) => {
     const router = useRouter();
-    const [_isLeaving, setIsLeaving] = useState(false);
-    const [isMounted, setIsMounted] = useState(false);
-    const _onlineUsers = useSocket((state) => state.onlineUsers);
-
-    useEffect(() => {
-      setIsMounted(true);
-    }, []);
+    const isMounted = useMounted();
 
     const {
       name,
@@ -64,7 +58,6 @@ const ChatHeader = memo(
     }, [user?.isAdmin]);
 
     const handleBack = () => {
-      setIsLeaving(true);
       const chatContainer = document.querySelector("[data-chat-container]");
       if (chatContainer) {
         chatContainer.classList.add("animate-slide-out-right");

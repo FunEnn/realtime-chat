@@ -2,11 +2,11 @@
 
 import { LogIn } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ChatBody from "@/components/chat/chat-body";
 import ChatHeader from "@/components/chat/chat-header";
-import PublicRoomChatFooter from "@/components/chat/public-room-chat-footer";
 import EmptyState from "@/components/empty-state";
+import PublicRoomChatFooter from "@/components/public-room/public-room-chat-footer";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/hooks/use-clerk-auth";
@@ -32,8 +32,7 @@ const PublicRoomPage = () => {
 
   const [replyTo, setReplyTo] = useState<MessageType | null>(null);
 
-  const currentUserId = useMemo(() => user?._id || null, [user?._id]);
-  const _isAdmin = useMemo(() => user?.isAdmin || false, [user?.isAdmin]);
+  const currentUserId = user?._id || null;
 
   const chat = useMemo(() => {
     if (!currentRoom?.room) return null;
@@ -69,8 +68,6 @@ const PublicRoomPage = () => {
     () => chat && chat._id !== roomId,
     [chat, roomId],
   );
-
-  const handleCancelReply = useCallback(() => setReplyTo(null), []);
 
   useEffect(() => {
     if (!roomId) return;
@@ -195,7 +192,7 @@ const PublicRoomPage = () => {
           replyTo={replyTo}
           chatId={roomId}
           currentUserId={currentUserId}
-          onCancelReply={handleCancelReply}
+          onCancelReply={() => setReplyTo(null)}
         />
       )}
     </div>

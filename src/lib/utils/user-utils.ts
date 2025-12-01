@@ -3,8 +3,11 @@ import { v4 as uuidv4 } from "uuid";
 import { useSocket } from "@/hooks/use-socket";
 import type { ChatType, PublicRoomChatType } from "@/types/chat.type";
 
-export const isUserOnline = (userId?: string, isMounted: boolean = true) => {
-  if (!userId || !isMounted) return false;
+const checkUserOnline = (userId: string, onlineUsers: string[]): boolean =>
+  onlineUsers.includes(userId);
+
+export const isUserOnline = (userId?: string): boolean => {
+  if (!userId) return false;
   const { onlineUsers } = useSocket.getState();
   return onlineUsers.includes(userId);
 };
@@ -14,13 +17,15 @@ export const getOtherUserAndGroup = (
   currentUserId: string | null,
   isMounted: boolean = true,
 ) => {
+  const onlineUsers = isMounted ? useSocket.getState().onlineUsers : [];
   const isPublicRoom = "members" in chat && "memberCount" in chat;
 
   if (isPublicRoom) {
     const members = chat.members || [];
     const onlineCount = isMounted
-      ? members.filter((memberId: string) => isUserOnline(memberId, isMounted))
-          .length
+      ? members.filter((memberId: string) =>
+          checkUserOnline(memberId, onlineUsers),
+        ).length
       : 0;
     const totalMembers = chat.memberCount || members.length || 0;
 
@@ -39,7 +44,8 @@ export const getOtherUserAndGroup = (
 
   if (isGroup && "participants" in chat) {
     const onlineCount = isMounted
-      ? chat.participants.filter((p) => isUserOnline(p._id, isMounted)).length
+      ? chat.participants.filter((p) => checkUserOnline(p._id, onlineUsers))
+          .length
       : 0;
     const totalMembers = chat.participants.length;
 
@@ -67,7 +73,7 @@ export const getOtherUserAndGroup = (
   }
 
   const other = chat.participants.find((p) => p._id !== currentUserId);
-  const isOnline = isUserOnline(other?._id ?? "", isMounted);
+  const isOnline = other?._id ? checkUserOnline(other._id, onlineUsers) : false;
 
   return {
     name: other?.name || "Unknown",
@@ -78,7 +84,7 @@ export const getOtherUserAndGroup = (
   };
 };
 
-export const formatChatTime = (date: string | Date) => {
+export const formatChatTime = (date: string | Date): string => {
   if (!date) return "";
   const newDate = new Date(date);
   if (Number.isNaN(newDate.getTime())) return "Invalid date";
@@ -89,6 +95,4 @@ export const formatChatTime = (date: string | Date) => {
   return format(newDate, "M/d");
 };
 
-export function generateUUID(): string {
-  return uuidv4();
-}
+export const generateUUID = (): string => uuidv4();

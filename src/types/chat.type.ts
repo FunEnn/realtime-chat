@@ -14,9 +14,8 @@ export type MessageType = {
   streaming?: boolean;
 };
 
-export type ChatType = {
+type BaseChatType = {
   _id: string;
-  participants: UserType[];
   lastMessage: MessageType | null;
   isGroup: boolean;
   isAiChat: boolean;
@@ -28,17 +27,11 @@ export type ChatType = {
   updatedAt: string;
 };
 
-export type PublicRoomChatType = {
-  _id: string;
-  lastMessage: MessageType | null;
-  isGroup: boolean;
-  isAiChat: boolean;
-  createdBy: string;
-  groupName?: string;
-  groupAvatar?: string;
-  unreadCount?: number;
-  createdAt: string;
-  updatedAt: string;
+export type ChatType = BaseChatType & {
+  participants: UserType[];
+};
+
+export type PublicRoomChatType = BaseChatType & {
   name: string;
   description: string;
   avatar?: string;
@@ -53,8 +46,6 @@ export type CreateChatInput = {
   groupName?: string;
   groupAvatar?: string;
 };
-
-export type CreateChatType = CreateChatInput;
 
 export type SendMessageInput = {
   chatId: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import ChatBody from "@/components/chat/chat-body";
 import ChatFooter from "@/components/chat/chat-footer";
 import ChatHeader from "@/components/chat/chat-header";
@@ -20,19 +20,10 @@ const SingleChat = () => {
 
   const [replyTo, setReplyTo] = useState<MessageType | null>(null);
 
-  const currentUserId = useMemo(() => user?._id || null, [user?._id]);
-  const chat = useMemo(() => singleChat?.chat, [singleChat?.chat]);
-  const messages = useMemo(
-    () => singleChat?.messages || [],
-    [singleChat?.messages],
-  );
-
-  const isChatMismatch = useMemo(
-    () => chat && chat._id !== chatId,
-    [chat, chatId],
-  );
-
-  const handleCancelReply = useCallback(() => setReplyTo(null), []);
+  const currentUserId = user?._id || null;
+  const chat = singleChat?.chat;
+  const messages = singleChat?.messages || [];
+  const isChatMismatch = chat && chat._id !== chatId;
 
   useEffect(() => {
     if (!chatId) return;
@@ -87,7 +78,7 @@ const SingleChat = () => {
         replyTo={replyTo}
         chatId={chatId}
         currentUserId={currentUserId}
-        onCancelReply={handleCancelReply}
+        onCancelReply={() => setReplyTo(null)}
       />
     </div>
   );

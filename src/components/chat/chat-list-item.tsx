@@ -1,12 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { memo, useEffect, useMemo, useState } from "react";
-import { useSocket } from "@/hooks/use-socket";
-import { formatChatTime, getOtherUserAndGroup } from "@/lib/helper";
+import { memo, useMemo } from "react";
+import AvatarWithBadge from "@/components/shared/avatar-with-badge";
+import { useMounted } from "@/hooks/use-mounted";
 import { cn } from "@/lib/utils";
+import { formatChatTime, getOtherUserAndGroup } from "@/lib/utils/user-utils";
 import type { ChatType } from "@/types/chat.type";
-import AvatarWithBadge from "../avatar-with-badge";
 
 interface PropsType {
   chat: ChatType;
@@ -17,12 +17,7 @@ interface PropsType {
 const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
   const pathname = usePathname();
   const { lastMessage, createdAt } = chat;
-  const [isMounted, setIsMounted] = useState(false);
-  const _onlineUsers = useSocket((state) => state.onlineUsers);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const isMounted = useMounted();
 
   const { name, avatar, isOnline, isGroup } = useMemo(
     () => getOtherUserAndGroup(chat, currentUserId, isMounted),

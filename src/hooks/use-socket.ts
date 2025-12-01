@@ -2,7 +2,7 @@
 
 import { io, type Socket } from "socket.io-client";
 import { create } from "zustand";
-import { getAuthToken } from "@/lib/axios-client";
+import { getAuthToken } from "@/lib/api/axios-client";
 
 const SOCKET_URL =
   process.env.NEXT_PUBLIC_SOCKET_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "";

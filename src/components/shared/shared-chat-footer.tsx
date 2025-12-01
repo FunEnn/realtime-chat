@@ -6,33 +6,41 @@ import { memo, useCallback, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { usePublicRoom } from "@/hooks/use-public-room";
 import type { MessageType } from "@/types/chat.type";
+import ChatReplyBar from "../chat/chat-reply-bar";
 import { Button } from "../ui/button";
 import { Form, FormField, FormItem } from "../ui/form";
 import { Input } from "../ui/input";
-import ChatReplyBar from "./chat-reply-bar";
 
-interface PublicRoomChatFooterProps {
+interface SharedChatFooterProps {
   chatId: string | null;
   currentUserId: string | null;
   replyTo: MessageType | null;
   onCancelReply: () => void;
+  isSendingMsg: boolean;
+  sendMessage: (payload: {
+    chatId: string;
+    content?: string;
+    image?: string;
+    replyTo?: MessageType | null;
+  }) => void | Promise<void>;
+  showReplyBar?: boolean;
 }
 
 const messageSchema = z.object({
   message: z.string().optional(),
 });
 
-const PublicRoomChatFooter = memo(
+const SharedChatFooter = memo(
   ({
     chatId,
     currentUserId,
     replyTo,
     onCancelReply,
-  }: PublicRoomChatFooterProps) => {
-    const { sendMessage, isSendingMsg } = usePublicRoom();
-
+    isSendingMsg,
+    sendMessage,
+    showReplyBar = true,
+  }: SharedChatFooterProps) => {
     const [image, setImage] = useState<string | null>(null);
     const imageInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -55,10 +63,9 @@ const PublicRoomChatFooter = memo(
         try {
           toast.loading("Compressing image...", { id: "compress" });
           const { compressImage, getBase64Size } = await import(
-            "@/lib/image-compression"
+            "@/lib/utils/image-compression"
           );
 
-          // Compress image to max 2MB, 1920px, quality 0.8
           const compressed = await compressImage(file, 2, 1920, 0.8);
           const sizeMB = getBase64Size(compressed);
 
@@ -91,14 +98,12 @@ const PublicRoomChatFooter = memo(
           return;
         }
 
-        const payload = {
-          chatId: chatId,
+        sendMessage({
+          chatId,
           content: values.message,
           image: image || undefined,
-          replyTo: replyTo,
-        };
-
-        sendMessage(payload);
+          replyTo,
+        });
 
         onCancelReply();
         handleRemoveImage();
@@ -117,75 +122,66 @@ const PublicRoomChatFooter = memo(
     );
 
     return (
-      <div className="sticky bottom-0 left-0 right-0 bg-background border-t border-border py-3 md:py-4 safe-area-bottom">
-        {image && !isSendingMsg && (
-          <div className="max-w-6xl mx-auto px-3 md:px-8.5">
-            <div className="relative w-fit">
-              <img
-                src={image}
-                alt="Preview"
-                className="h-24 w-24 object-cover rounded-md"
-              />
-              <button
-                type="button"
-                onClick={handleRemoveImage}
-                className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      <>
+        <div className="sticky bottom-0 left-0 right-0 bg-background border-t border-border py-3 md:py-4 safe-area-bottom">
+          {image && !isSendingMsg && (
+            <div className="max-w-6xl mx-auto px-3 md:px-8.5 mb-2">
+              <div className="relative w-fit">
+                <img
+                  src={image}
+                  className="object-contain h-16 bg-muted min-w-16"
+                  alt="Preview"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-px right-1 bg-black/50 text-white rounded-full cursor-pointer h-6 w-6"
+                  onClick={handleRemoveImage}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {replyTo && (
-          <ChatReplyBar
-            replyTo={replyTo}
-            currentUserId={currentUserId}
-            onCancel={onCancelReply}
-          />
-        )}
-
-        <div className="max-w-6xl mx-auto px-3 md:px-8.5">
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
-              className="flex items-end gap-2"
+              className="max-w-6xl px-3 md:px-8.5 mx-auto flex items-end gap-1.5 md:gap-2"
             >
-              <input
-                type="file"
-                ref={imageInputRef}
-                onChange={handleImageChange}
-                accept="image/*"
-                className="hidden"
-              />
-
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                onClick={() => imageInputRef.current?.click()}
-                disabled={isSendingMsg}
-                className="shrink-0"
-              >
-                <Paperclip className="w-5 h-5" />
-              </Button>
+              <div className="flex items-center gap-1 md:gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  disabled={isSendingMsg}
+                  className="rounded-full h-9 w-9 md:h-10 md:w-10"
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  disabled={isSendingMsg}
+                  ref={imageInputRef}
+                  onChange={handleImageChange}
+                />
+              </div>
 
               <FormField
                 control={form.control}
                 name="message"
+                disabled={isSendingMsg}
                 render={({ field }) => (
                   <FormItem className="flex-1">
                     <Input
                       {...field}
-                      placeholder="Type a message..."
-                      disabled={isSendingMsg}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          form.handleSubmit(onSubmit)();
-                        }
-                      }}
-                      className="resize-none"
+                      autoComplete="off"
+                      placeholder="Type new message"
+                      className="min-h-[36px] md:min-h-[40px] bg-background text-sm md:text-base"
                     />
                   </FormItem>
                 )}
@@ -194,19 +190,27 @@ const PublicRoomChatFooter = memo(
               <Button
                 type="submit"
                 size="icon"
+                className="rounded-lg h-9 w-9 md:h-10 md:w-10"
                 disabled={isSendingMsg}
-                className="shrink-0"
               >
-                <Send className="w-5 h-5" />
+                <Send className="h-3.5 w-3.5" />
               </Button>
             </form>
           </Form>
         </div>
-      </div>
+
+        {showReplyBar && replyTo && !isSendingMsg && (
+          <ChatReplyBar
+            replyTo={replyTo}
+            currentUserId={currentUserId}
+            onCancel={onCancelReply}
+          />
+        )}
+      </>
     );
   },
 );
 
-PublicRoomChatFooter.displayName = "PublicRoomChatFooter";
+SharedChatFooter.displayName = "SharedChatFooter";
 
-export default PublicRoomChatFooter;
+export default SharedChatFooter;

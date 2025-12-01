@@ -4,7 +4,7 @@ import { Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ImageCropDialog } from "@/components/chat/image-crop-dialog";
+import { ImageCropDialog } from "@/components/shared/image-crop-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { useImageUpload } from "@/hooks/use-image-upload";
 import { usePublicRoom } from "@/hooks/use-public-room";
 
 interface CreatePublicRoomDialogProps {
@@ -34,85 +35,21 @@ export default function CreatePublicRoomDialog({
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [avatar, setAvatar] = useState<string | null>(null);
-  const [cropDialogOpen, setCropDialogOpen] = useState(false);
-  const [tempImageSrc, setTempImageSrc] = useState("");
+
+  const {
+    avatar,
+    cropDialogOpen,
+    setCropDialogOpen,
+    tempImageSrc,
+    handleAvatarChange,
+    handleCropComplete,
+    resetAvatar,
+  } = useImageUpload();
 
   const resetForm = () => {
     setName("");
     setDescription("");
-    setAvatar(null);
-  };
-
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
-      return;
-    }
-
-    try {
-      toast.loading("Processing image...");
-
-      const compressed = await compressImageForCrop(file);
-      toast.dismiss();
-      setTempImageSrc(compressed);
-      setCropDialogOpen(true);
-    } catch (error) {
-      toast.dismiss();
-      console.error("Image processing failed:", error);
-      toast.error("Failed to process image");
-    }
-
-    e.target.value = "";
-  };
-
-  const compressImageForCrop = async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let { width, height } = img;
-
-          const maxDimension = 2048;
-          if (width > maxDimension || height > maxDimension) {
-            if (width > height) {
-              height = (height * maxDimension) / width;
-              width = maxDimension;
-            } else {
-              width = (width * maxDimension) / height;
-              height = maxDimension;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            reject(new Error("Failed to get canvas context"));
-            return;
-          }
-
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressed = canvas.toDataURL("image/jpeg", 0.9);
-          resolve(compressed);
-        };
-        img.onerror = () => reject(new Error("Failed to load image"));
-        img.src = e.target?.result as string;
-      };
-      reader.onerror = () => reject(new Error("Failed to read file"));
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleCropComplete = (croppedImage: string) => {
-    setAvatar(croppedImage);
-    toast.success("Avatar uploaded successfully");
+    resetAvatar();
   };
 
   const handleCreate = async () => {

@@ -1,9 +1,9 @@
 "use client";
 
 import { Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useMounted } from "@/hooks/use-mounted";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 interface Props {
   name: string;
@@ -22,11 +22,7 @@ const AvatarWithBadge = ({
   size = "w-9 h-9",
   className,
 }: Props) => {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const isMounted = useMounted();
 
   return (
     <div className="relative shrink-0">

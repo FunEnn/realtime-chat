@@ -1,14 +1,14 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PublicRoomList from "@/components/public-room/public-room-list";
+import CollapsibleSection from "@/components/shared/collapsible-section";
 import { Spinner } from "@/components/ui/spinner";
 import { useChat } from "@/hooks/use-chat";
 import { useAuth } from "@/hooks/use-clerk-auth";
 import { useSocket } from "@/hooks/use-socket";
-import type { ChatType, MessageType } from "@/types/chat.type";
+import type { MessageType } from "@/types/chat.type";
 import ChatListHeader from "./chat-list-header";
 import ChatListItem from "./chat-list-item";
 
@@ -19,7 +19,7 @@ const ChatList = () => {
     useChat();
   const { user } = useAuth();
 
-  const currentUserId = useMemo(() => user?._id || null, [user?._id]);
+  const currentUserId = user?._id || null;
   const [searchQuery, setSearchQuery] = useState("");
   const [isPrivateExpanded, setIsPrivateExpanded] = useState(true);
   const [isGroupExpanded, setIsGroupExpanded] = useState(true);
@@ -43,20 +43,6 @@ const ChatList = () => {
     };
   }, [chats, searchQuery, currentUserId]);
 
-  const handleNewChat = useCallback(
-    (newChat: ChatType) => {
-      addNewChat(newChat);
-    },
-    [addNewChat],
-  );
-
-  const handleChatUpdate = useCallback(
-    (data: { chatId: string; lastMessage: MessageType }) => {
-      updateChatLastMessage(data.chatId, data.lastMessage);
-    },
-    [updateChatLastMessage],
-  );
-
   const handleChatClick = useCallback(
     (id: string) => {
       router.push(`/chat/${id}`);
@@ -67,22 +53,19 @@ const ChatList = () => {
   useEffect(() => {
     if (!socket) return;
 
-    socket.on("chat:new", handleNewChat);
+    socket.on("chat:new", addNewChat);
+    socket.on(
+      "chat:update",
+      (data: { chatId: string; lastMessage: MessageType }) => {
+        updateChatLastMessage(data.chatId, data.lastMessage);
+      },
+    );
 
     return () => {
-      socket.off("chat:new", handleNewChat);
+      socket.off("chat:new", addNewChat);
+      socket.off("chat:update");
     };
-  }, [socket, handleNewChat]);
-
-  useEffect(() => {
-    if (!socket) return;
-
-    socket.on("chat:update", handleChatUpdate);
-
-    return () => {
-      socket.off("chat:update", handleChatUpdate);
-    };
-  }, [socket, handleChatUpdate]);
+  }, [socket, addNewChat, updateChatLastMessage]);
 
   if (isChatsLoading) {
     return (
@@ -108,28 +91,13 @@ const ChatList = () => {
             <>
               {privateChats.length > 0 && (
                 <div className="mb-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsPrivateExpanded(!isPrivateExpanded)}
-                    className="w-full flex items-center gap-1.5 md:gap-2 px-1.5 md:px-2 py-1.5 hover:bg-sidebar-accent rounded transition-colors"
+                  <CollapsibleSection
+                    title="Private Chats"
+                    count={privateChats.length}
+                    isExpanded={isPrivateExpanded}
+                    onToggle={() => setIsPrivateExpanded(!isPrivateExpanded)}
                   >
-                    <ChevronRight
-                      className={`w-3.5 h-3.5 md:w-4 md:h-4 text-muted-foreground transition-transform duration-200 ${
-                        isPrivateExpanded ? "rotate-90" : ""
-                      }`}
-                    />
-                    <h3 className="text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Private Chats ({privateChats.length})
-                    </h3>
-                  </button>
-                  <div
-                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                      isPrivateExpanded
-                        ? "max-h-[2000px] opacity-100"
-                        : "max-h-0 opacity-0"
-                    }`}
-                  >
-                    <div className="space-y-1 mt-1">
+                    <div className="space-y-1">
                       {privateChats.map((chat) => (
                         <ChatListItem
                           key={chat._id}
@@ -139,76 +107,40 @@ const ChatList = () => {
                         />
                       ))}
                     </div>
-                  </div>
+                  </CollapsibleSection>
                 </div>
               )}
 
               {groupChats.length > 0 && (
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setIsGroupExpanded(!isGroupExpanded)}
-                    className="w-full flex items-center gap-1.5 md:gap-2 px-1.5 md:px-2 py-1.5 hover:bg-sidebar-accent rounded transition-colors"
-                  >
-                    <ChevronRight
-                      className={`w-3.5 h-3.5 md:w-4 md:h-4 text-muted-foreground transition-transform duration-200 ${
-                        isGroupExpanded ? "rotate-90" : ""
-                      }`}
-                    />
-                    <h3 className="text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Group Chats ({groupChats.length})
-                    </h3>
-                  </button>
-                  <div
-                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                      isGroupExpanded
-                        ? "max-h-[2000px] opacity-100"
-                        : "max-h-0 opacity-0"
-                    }`}
-                  >
-                    <div className="space-y-1 mt-1">
-                      {groupChats.map((chat) => (
-                        <ChatListItem
-                          key={chat._id}
-                          chat={chat}
-                          currentUserId={currentUserId}
-                          onClick={() => handleChatClick(chat._id)}
-                        />
-                      ))}
-                    </div>
+                <CollapsibleSection
+                  title="Group Chats"
+                  count={groupChats.length}
+                  isExpanded={isGroupExpanded}
+                  onToggle={() => setIsGroupExpanded(!isGroupExpanded)}
+                >
+                  <div className="space-y-1">
+                    {groupChats.map((chat) => (
+                      <ChatListItem
+                        key={chat._id}
+                        chat={chat}
+                        currentUserId={currentUserId}
+                        onClick={() => handleChatClick(chat._id)}
+                      />
+                    ))}
                   </div>
-                </div>
+                </CollapsibleSection>
               )}
 
-              {/* Public Rooms Section */}
               <div className="mt-2">
-                <button
-                  type="button"
-                  onClick={() =>
+                <CollapsibleSection
+                  title="Public Rooms"
+                  isExpanded={isPublicRoomsExpanded}
+                  onToggle={() =>
                     setIsPublicRoomsExpanded(!isPublicRoomsExpanded)
                   }
-                  className="w-full flex items-center gap-1.5 md:gap-2 px-1.5 md:px-2 py-1.5 hover:bg-sidebar-accent rounded transition-colors"
                 >
-                  <ChevronRight
-                    className={`w-3.5 h-3.5 md:w-4 md:h-4 text-muted-foreground transition-transform duration-200 ${
-                      isPublicRoomsExpanded ? "rotate-90" : ""
-                    }`}
-                  />
-                  <h3 className="text-[10px] md:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Public Rooms
-                  </h3>
-                </button>
-                <div
-                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                    isPublicRoomsExpanded
-                      ? "max-h-[2000px] opacity-100"
-                      : "max-h-0 opacity-0"
-                  }`}
-                >
-                  <div className="mt-1">
-                    <PublicRoomList />
-                  </div>
-                </div>
+                  <PublicRoomList />
+                </CollapsibleSection>
               </div>
             </>
           )}

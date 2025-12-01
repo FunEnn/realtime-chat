@@ -1,14 +1,20 @@
 "use client";
 
-import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { useAuthStore } from "@/hooks/use-clerk-auth";
-import { API } from "@/lib/axios-client";
+import { API } from "@/lib/api/axios-client";
+import { sendMessageService } from "@/lib/services/message/message-service";
+import {
+  addMessageIfNotExists,
+  replaceOrRemoveTempMessage,
+} from "@/lib/services/message/message-state-utils";
+import { getErrorMessage, handleError } from "@/lib/utils/error-handler";
+import { logger } from "@/lib/utils/logger";
 import type { UserType } from "@/types/auth.type";
 import type {
   ChatType,
-  CreateChatType,
+  CreateChatInput,
   CreateMessageType,
   MessageType,
 } from "@/types/chat.type";
@@ -31,7 +37,7 @@ interface ChatState {
   isUpdatingGroup: boolean;
   fetchAllUsers: () => Promise<void>;
   fetchChats: () => Promise<void>;
-  createChat: (payload: CreateChatType) => Promise<ChatType | null>;
+  createChat: (payload: CreateChatInput) => Promise<ChatType | null>;
   fetchSingleChat: (
     chatId: string,
     options?: { silent?: boolean },
@@ -47,19 +53,6 @@ interface ChatState {
   updateChatLastMessage: (chatId: string, lastMessage: MessageType) => void;
   addNewMessage: (chatId: string, message: MessageType) => void;
 }
-
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (isAxiosError(error)) {
-    const message = (error.response?.data as { message?: string })?.message;
-    return message ?? fallback;
-  }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return fallback;
-};
-
-const generateUUID = () => crypto.randomUUID();
 
 export const useChat = create<ChatState>()((set, get) => ({
   chats: [],
@@ -79,8 +72,7 @@ export const useChat = create<ChatState>()((set, get) => ({
       const { data } = await API.get<{ users: UserType[] }>("/user/all");
       set({ users: data.users });
     } catch (error) {
-      console.error("Fetch users error:", error);
-      toast.error(getErrorMessage(error, "Failed to fetch users"));
+      handleError(error, "Fetch users", "Failed to fetch users");
     } finally {
       set({ isUsersLoading: false });
     }
@@ -92,8 +84,7 @@ export const useChat = create<ChatState>()((set, get) => ({
       const { data } = await API.get<{ chats: ChatType[] }>("/chat/all");
       set({ chats: data.chats });
     } catch (error) {
-      console.error("Fetch chats error:", error);
-      toast.error(getErrorMessage(error, "Failed to fetch chats"));
+      handleError(error, "Fetch chats", "Failed to fetch chats");
     } finally {
       set({ isChatsLoading: false });
     }
@@ -110,8 +101,7 @@ export const useChat = create<ChatState>()((set, get) => ({
       toast.success("Chat created successfully");
       return data.chat;
     } catch (error) {
-      console.error("Create chat error:", error);
-      toast.error(getErrorMessage(error, "Failed to create chat"));
+      handleError(error, "Create chat", "Failed to create chat");
       return null;
     } finally {
       set({ isCreatingChat: false });
@@ -124,25 +114,23 @@ export const useChat = create<ChatState>()((set, get) => ({
       const { data } = await API.get<SingleChatState>(`/chat/${chatId}`);
       set({ singleChat: data });
 
-      // 标记聊天为已读
       try {
         await API.post(`/chat/${chatId}/mark-read`);
-        // 更新本地聊天列表中的未读数
         set((state) => ({
           chats: state.chats.map((chat) =>
             chat._id === chatId ? { ...chat, unreadCount: 0 } : chat,
           ),
         }));
       } catch (markReadError) {
-        console.error("Mark as read error:", markReadError);
+        logger.error("Mark as read error", { error: markReadError });
       }
     } catch (error) {
-      console.error("Fetch single chat error:", error);
+      logger.error("Fetch single chat error", { error });
       if (!options?.silent) {
         toast.error(getErrorMessage(error, "Failed to fetch chat"));
       }
       set({ singleChat: null });
-      throw error; // 重新抛出错误以便调用者处理
+      throw error;
     } finally {
       set({ isSingleChatLoading: false });
     }
@@ -155,8 +143,7 @@ export const useChat = create<ChatState>()((set, get) => ({
       );
       return data.messages;
     } catch (error) {
-      console.error("Fetch chat history error:", error);
-      toast.error(getErrorMessage(error, "Failed to fetch chat history"));
+      handleError(error, "Fetch chat history", "Failed to fetch chat history");
       return [];
     }
   },
@@ -166,94 +153,53 @@ export const useChat = create<ChatState>()((set, get) => ({
     const { chatId, replyTo, content, image } = payload;
     const { user } = useAuthStore.getState();
 
-    if (!chatId || !user?._id) {
-      toast.error("Chat or user not available");
-      set({ isSendingMsg: false });
-      return;
-    }
-
-    if (!content?.trim() && !image) {
-      toast.error("Message content cannot be empty");
-      set({ isSendingMsg: false });
-      return;
-    }
-
-    const tempId = generateUUID();
-    const tempMessage: MessageType = {
-      _id: tempId,
-      chatId,
-      content: content ?? "",
-      image: image ?? null,
-      sender: user,
-      replyTo: replyTo ?? null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: "sending...",
-    };
-
-    set((state) => {
-      if (state.singleChat?.chat._id !== chatId) return state;
-      return {
-        singleChat: {
-          chat: state.singleChat.chat,
-          messages: [...state.singleChat.messages, tempMessage],
+    await sendMessageService(
+      { chatId: chatId as string, content, image, replyTo },
+      user,
+      {
+        onOptimisticUpdate: (tempMessage) => {
+          set((state) => {
+            if (state.singleChat?.chat._id !== chatId) return state;
+            return {
+              singleChat: {
+                chat: state.singleChat.chat,
+                messages: [...state.singleChat.messages, tempMessage],
+              },
+            };
+          });
         },
-      };
-    });
-
-    try {
-      const { data } = await API.post<{ message: MessageType }>(
-        "/chat/message/send",
-        {
-          chatId,
-          content,
-          image,
-          replyToId: replyTo?._id,
+        onSuccess: (realMessage, tempId) => {
+          set((state) => {
+            if (!state.singleChat) return state;
+            return {
+              singleChat: {
+                chat: state.singleChat.chat,
+                messages: replaceOrRemoveTempMessage(
+                  state.singleChat.messages,
+                  tempId,
+                  realMessage,
+                ),
+              },
+            };
+          });
         },
-      );
+        onError: (tempId) => {
+          set((state) => {
+            if (!state.singleChat) return state;
+            return {
+              singleChat: {
+                chat: state.singleChat.chat,
+                messages: state.singleChat.messages.filter(
+                  (message) => message._id !== tempId,
+                ),
+              },
+            };
+          });
+        },
+      },
+    );
 
-      set((state) => {
-        if (!state.singleChat) return state;
-        const realMessageExists = state.singleChat.messages.some(
-          (msg) => msg._id === data.message._id,
-        );
-        if (realMessageExists) {
-          return {
-            singleChat: {
-              chat: state.singleChat.chat,
-              messages: state.singleChat.messages.filter(
-                (msg) => msg._id !== tempId,
-              ),
-            },
-          };
-        }
-        return {
-          singleChat: {
-            chat: state.singleChat.chat,
-            messages: state.singleChat.messages.map((message) =>
-              message._id === tempId ? data.message : message,
-            ),
-          },
-        };
-      });
-    } catch (error) {
-      console.error("Send message error:", error);
-      toast.error(getErrorMessage(error, "Failed to send message"));
-
-      set((state) => {
-        if (!state.singleChat) return state;
-        return {
-          singleChat: {
-            chat: state.singleChat.chat,
-            messages: state.singleChat.messages.filter(
-              (message) => message._id !== tempId,
-            ),
-          },
-        };
-      });
-    } finally {
-      set({ isSendingMsg: false });
-    }
+    set({ isSendingMsg: false });
   },
 
   addNewChat: (chat) => {
@@ -276,7 +222,6 @@ export const useChat = create<ChatState>()((set, get) => ({
       const { user } = useAuthStore.getState();
       const currentUserId = user?._id;
 
-      // 如果不是当前用户发送的消息，且不是当前打开的聊天，增加未读数
       const isCurrentChat = state.singleChat?.chat._id === chatId;
       const isSender = lastMessage.sender?._id === currentUserId;
       const shouldIncrementUnread = !isCurrentChat && !isSender;
@@ -297,20 +242,12 @@ export const useChat = create<ChatState>()((set, get) => ({
   },
 
   addNewMessage: (chatId, message) => {
-    if (!message || typeof message !== "object" || !message._id) {
-      console.error("Invalid message received in addNewMessage:", message);
-      return;
-    }
     set((state) => {
       if (state.singleChat?.chat._id !== chatId) return state;
-      const messageExists = state.singleChat.messages.some(
-        (msg) => msg._id === message._id,
-      );
-      if (messageExists) return state;
       return {
         singleChat: {
           chat: state.singleChat.chat,
-          messages: [...state.singleChat.messages, message],
+          messages: addMessageIfNotExists(state.singleChat.messages, message),
         },
       };
     });
@@ -345,8 +282,7 @@ export const useChat = create<ChatState>()((set, get) => ({
 
       return true;
     } catch (error) {
-      console.error("Update group info error:", error);
-      toast.error(getErrorMessage(error, "Failed to update group info"));
+      handleError(error, "Update group info", "Failed to update group info");
       return false;
     } finally {
       set({ isUpdatingGroup: false });
@@ -357,7 +293,6 @@ export const useChat = create<ChatState>()((set, get) => ({
     try {
       await API.delete(`/chat/${chatId}`);
 
-      // 从列表中移除
       set((state) => ({
         chats: state.chats.filter((chat) => chat._id !== chatId),
       }));
@@ -365,8 +300,7 @@ export const useChat = create<ChatState>()((set, get) => ({
       toast.success("Group chat deleted successfully");
       return true;
     } catch (error) {
-      console.error("Delete group chat error:", error);
-      toast.error(getErrorMessage(error, "Failed to delete group chat"));
+      handleError(error, "Delete group chat", "Failed to delete group chat");
       return false;
     }
   },

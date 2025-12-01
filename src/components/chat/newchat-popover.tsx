@@ -3,11 +3,13 @@
 import { ArrowLeft, PenBox, Search, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { memo, useEffect, useState } from "react";
-import { toast } from "sonner";
+import AvatarWithBadge from "@/components/shared/avatar-with-badge";
+import { ImageCropDialog } from "@/components/shared/image-crop-dialog";
 import { useChat } from "@/hooks/use-chat";
 import { useAuth } from "@/hooks/use-clerk-auth";
+import { useImageUpload } from "@/hooks/use-image-upload";
+import { useMounted } from "@/hooks/use-mounted";
 import type { UserType } from "@/types/auth.type";
-import AvatarWithBadge from "../avatar-with-badge";
 import CreatePublicRoomDialog from "../public-room/create-public-room-dialog";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
@@ -18,7 +20,6 @@ import {
 } from "../ui/input-group";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Spinner } from "../ui/spinner";
-import { ImageCropDialog } from "./image-crop-dialog";
 
 export const NewChatPopover = memo(() => {
   const router = useRouter();
@@ -26,19 +27,22 @@ export const NewChatPopover = memo(() => {
   const { fetchAllUsers, users, isUsersLoading, createChat, isCreatingChat } =
     useChat();
 
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useMounted();
   const [isOpen, setIsOpen] = useState(false);
   const [isGroupMode, setIsGroupMode] = useState(false);
   const [groupName, setGroupName] = useState("");
-  const [groupAvatar, setGroupAvatar] = useState<string | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
-  const [cropDialogOpen, setCropDialogOpen] = useState(false);
-  const [tempImageSrc, setTempImageSrc] = useState<string>("");
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const {
+    avatar: groupAvatar,
+    cropDialogOpen,
+    setCropDialogOpen,
+    tempImageSrc,
+    handleAvatarChange,
+    handleCropComplete: onCropComplete,
+    resetAvatar,
+  } = useImageUpload();
 
   useEffect(() => {
     if (isOpen) {
@@ -61,7 +65,7 @@ export const NewChatPopover = memo(() => {
   const resetState = () => {
     setIsGroupMode(false);
     setGroupName("");
-    setGroupAvatar(null);
+    resetAvatar();
     setSelectedUsers([]);
   };
 
@@ -76,81 +80,8 @@ export const NewChatPopover = memo(() => {
     }
   };
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
-      return;
-    }
-
-    try {
-      toast.loading("Processing image...");
-
-      // 直接压缩图片，不限制文件大小
-      const compressed = await compressImageForCrop(file);
-
-      toast.dismiss();
-      setTempImageSrc(compressed);
-      setCropDialogOpen(true);
-    } catch (error) {
-      toast.dismiss();
-      console.error("Image processing failed:", error);
-      toast.error("Failed to process image. Please try a different image.");
-    }
-
-    e.target.value = "";
-  };
-
-  const compressImageForCrop = async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let { width, height } = img;
-
-          // 计算合适的尺寸（最大边不超过2048px）
-          const maxDimension = 2048;
-          if (width > maxDimension || height > maxDimension) {
-            if (width > height) {
-              height = (height * maxDimension) / width;
-              width = maxDimension;
-            } else {
-              width = (width * maxDimension) / height;
-              height = maxDimension;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            reject(new Error("Failed to get canvas context"));
-            return;
-          }
-
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // 转换为base64，质量为0.9
-          const compressed = canvas.toDataURL("image/jpeg", 0.9);
-          resolve(compressed);
-        };
-        img.onerror = () => reject(new Error("Failed to load image"));
-        img.src = e.target?.result as string;
-      };
-      reader.onerror = () => reject(new Error("Failed to read file"));
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleCropComplete = (croppedImage: string) => {
-    setGroupAvatar(croppedImage);
-    toast.success("Avatar uploaded successfully");
-    // 确保Popover保持打开
+    onCropComplete(croppedImage);
     setIsOpen(true);
   };
 

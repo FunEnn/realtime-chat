@@ -2,10 +2,10 @@
 
 import { Moon, Sun } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import AvatarWithBadge from "@/components/shared/avatar-with-badge";
 import { useAuth } from "@/hooks/use-clerk-auth";
-import { isUserOnline } from "@/lib/helper";
-import AvatarWithBadge from "./avatar-with-badge";
+import { useMounted } from "@/hooks/use-mounted";
+import { isUserOnline } from "@/lib/utils/user-utils";
 import Logo from "./logo";
 import { useTheme } from "./theme-provider";
 import { Button } from "./ui/button";
@@ -22,13 +22,9 @@ import ProfileSettingsDialog from "./user/profile-settings-dialog";
 const AsideBar = () => {
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
 
   const isOnline = isUserOnline(user?._id);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleThemeToggle = () => {
     setTheme(theme === "light" ? "dark" : "light");

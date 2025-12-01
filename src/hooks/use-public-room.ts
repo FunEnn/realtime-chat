@@ -1,9 +1,16 @@
 "use client";
 
-import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import { create } from "zustand";
-import { API } from "@/lib/axios-client";
+import { useAuthStore } from "@/hooks/use-clerk-auth";
+import { API } from "@/lib/api/axios-client";
+import { sendMessageService } from "@/lib/services/message/message-service";
+import {
+  addMessageIfNotExists,
+  replaceOrRemoveTempMessage,
+} from "@/lib/services/message/message-state-utils";
+import { getErrorMessage, handleError } from "@/lib/utils/error-handler";
+import { logger } from "@/lib/utils/logger";
 import type { MessageType } from "@/types/chat.type";
 import type {
   CreatePublicRoomInput,
@@ -51,17 +58,6 @@ interface PublicRoomState {
   clearCurrentRoom: () => void;
 }
 
-const getErrorMessage = (error: unknown, fallback: string) => {
-  if (isAxiosError(error)) {
-    const message = (error.response?.data as { message?: string })?.message;
-    return message ?? fallback;
-  }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return fallback;
-};
-
 export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
   rooms: [],
   currentRoom: null,
@@ -80,8 +76,7 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
       );
       set({ rooms: data.rooms });
     } catch (error) {
-      console.error("Fetch public rooms error:", error);
-      toast.error(getErrorMessage(error, "Failed to fetch public rooms"));
+      handleError(error, "Fetch public rooms", "Failed to fetch public rooms");
     } finally {
       set({ isRoomsLoading: false });
     }
@@ -101,7 +96,7 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
       );
       set({ currentRoom: data });
     } catch (error) {
-      console.error("Fetch public room error:", error);
+      logger.error("Fetch public room error", { error });
       if (!options?.silent) {
         toast.error(getErrorMessage(error, "Failed to fetch public room"));
       }
@@ -117,7 +112,6 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
     try {
       await API.post(`/public-rooms/${roomId}/join`);
 
-      // 更新房间列表
       set((state) => ({
         rooms: state.rooms.map((room) =>
           room._id === roomId
@@ -126,7 +120,6 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
         ),
       }));
 
-      // 更新当前房间
       if (get().currentRoom?.room._id === roomId) {
         set((state) => ({
           currentRoom: state.currentRoom
@@ -145,8 +138,7 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
       toast.success("Joined room successfully");
       return true;
     } catch (error) {
-      console.error("Join room error:", error);
-      toast.error(getErrorMessage(error, "Failed to join room"));
+      handleError(error, "Join room", "Failed to join room");
       return false;
     } finally {
       set({ isJoining: false });
@@ -158,7 +150,6 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
     try {
       await API.post(`/public-rooms/${roomId}/leave`);
 
-      // 更新房间列表
       set((state) => ({
         rooms: state.rooms.map((room) =>
           room._id === roomId
@@ -167,7 +158,6 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
         ),
       }));
 
-      // 更新当前房间
       if (get().currentRoom?.room._id === roomId) {
         set((state) => ({
           currentRoom: state.currentRoom
@@ -178,7 +168,7 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
                   isMember: false,
                   memberCount: state.currentRoom.room.memberCount - 1,
                 },
-                messages: [], // 离开后清空消息
+                messages: [],
               }
             : null,
         }));
@@ -187,8 +177,7 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
       toast.success("Left room successfully");
       return true;
     } catch (error) {
-      console.error("Leave room error:", error);
-      toast.error(getErrorMessage(error, "Failed to leave room"));
+      handleError(error, "Leave room", "Failed to leave room");
       return false;
     } finally {
       set({ isLeaving: false });
@@ -202,7 +191,6 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
         data,
       );
 
-      // 添加到房间列表
       set((state) => ({
         rooms: [response.room, ...state.rooms],
       }));
@@ -210,8 +198,7 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
       toast.success("Public room created successfully");
       return response.room;
     } catch (error) {
-      console.error("Create public room error:", error);
-      toast.error(getErrorMessage(error, "Failed to create public room"));
+      handleError(error, "Create public room", "Failed to create public room");
       return null;
     }
   },
@@ -224,14 +211,12 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
         data,
       );
 
-      // 更新房间列表
       set((state) => ({
         rooms: state.rooms.map((room) =>
           room._id === roomId ? response.room : room,
         ),
       }));
 
-      // 更新当前房间
       if (get().currentRoom?.room._id === roomId) {
         set((state) => ({
           currentRoom: state.currentRoom
@@ -243,8 +228,7 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
       toast.success("Public room updated successfully");
       return true;
     } catch (error) {
-      console.error("Update public room error:", error);
-      toast.error(getErrorMessage(error, "Failed to update public room"));
+      handleError(error, "Update public room", "Failed to update public room");
       return false;
     } finally {
       set({ isUpdating: false });
@@ -254,125 +238,62 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
   sendMessage: async (payload) => {
     set({ isSendingMsg: true });
     const { chatId, content, image, replyTo } = payload;
-    const { useAuthStore } = await import("@/hooks/use-clerk-auth");
-    const { generateUUID } = await import("@/lib/helper");
     const { user } = useAuthStore.getState();
 
-    if (!chatId || !user?._id) {
-      toast.error("Chat or user not available");
-      set({ isSendingMsg: false });
-      return;
-    }
+    await sendMessageService({ chatId, content, image, replyTo }, user, {
+      onOptimisticUpdate: (tempMessage) => {
+        const state = get();
+        if (state.currentRoom?.room._id === chatId) {
+          set({
+            currentRoom: {
+              ...state.currentRoom,
+              messages: [...state.currentRoom.messages, tempMessage],
+            },
+          });
+        }
+      },
+      onSuccess: (realMessage, tempId) => {
+        const state = get();
+        if (state.currentRoom) {
+          set({
+            currentRoom: {
+              ...state.currentRoom,
+              messages: replaceOrRemoveTempMessage(
+                state.currentRoom.messages,
+                tempId,
+                realMessage,
+              ),
+            },
+          });
+        }
+      },
+      onError: (tempId) => {
+        const state = get();
+        if (state.currentRoom) {
+          set({
+            currentRoom: {
+              ...state.currentRoom,
+              messages: state.currentRoom.messages.filter(
+                (message) => message._id !== tempId,
+              ),
+            },
+          });
+        }
+      },
+    });
 
-    if (!content?.trim() && !image) {
-      toast.error("Message content cannot be empty");
-      set({ isSendingMsg: false });
-      return;
-    }
-
-    const tempId = generateUUID();
-    const tempMessage: MessageType = {
-      _id: tempId,
-      chatId,
-      content: content ?? "",
-      image: image ?? null,
-      sender: user,
-      replyTo: replyTo ?? null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: "sending...",
-    };
-
-    // 乐观更新：立即添加临时消息
-    const state = get();
-    if (state.currentRoom?.room._id === chatId) {
-      set({
-        currentRoom: {
-          ...state.currentRoom,
-          messages: [...state.currentRoom.messages, tempMessage],
-        },
-      });
-    }
-
-    try {
-      const { data } = await API.post<{ message: MessageType }>(
-        "/chat/message/send",
-        {
-          chatId,
-          content,
-          image,
-          replyToId: replyTo?._id,
-        },
-      );
-
-      // 用真实消息替换临时消息
-      const currentState = get();
-      if (!currentState.currentRoom) {
-        set({ isSendingMsg: false });
-        return;
-      }
-
-      const realMessageExists = currentState.currentRoom.messages.some(
-        (msg) => msg._id === data.message._id,
-      );
-
-      if (realMessageExists) {
-        // 如果真实消息已通过socket收到，移除临时消息
-        set({
-          currentRoom: {
-            ...currentState.currentRoom,
-            messages: currentState.currentRoom.messages.filter(
-              (msg) => msg._id !== tempId,
-            ),
-          },
-        });
-      } else {
-        // 否则，替换临时消息为真实消息
-        set({
-          currentRoom: {
-            ...currentState.currentRoom,
-            messages: currentState.currentRoom.messages.map((message) =>
-              message._id === tempId ? data.message : message,
-            ),
-          },
-        });
-      }
-    } catch (error) {
-      console.error("Send message error:", error);
-      toast.error(getErrorMessage(error, "Failed to send message"));
-
-      // 发送失败，移除临时消息
-      const currentState = get();
-      if (currentState.currentRoom) {
-        set({
-          currentRoom: {
-            ...currentState.currentRoom,
-            messages: currentState.currentRoom.messages.filter(
-              (message) => message._id !== tempId,
-            ),
-          },
-        });
-      }
-    } finally {
-      set({ isSendingMsg: false });
-    }
+    set({ isSendingMsg: false });
   },
 
   addNewMessage: (roomId, message) => {
     const state = get();
     if (state.currentRoom?.room._id === roomId) {
-      // 检查消息是否已存在（避免重复）
-      const exists = state.currentRoom.messages.some(
-        (m) => m._id === message._id,
-      );
-      if (!exists) {
-        set({
-          currentRoom: {
-            ...state.currentRoom,
-            messages: [...state.currentRoom.messages, message],
-          },
-        });
-      }
+      set({
+        currentRoom: {
+          ...state.currentRoom,
+          messages: addMessageIfNotExists(state.currentRoom.messages, message),
+        },
+      });
     }
   },
 
@@ -408,7 +329,6 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
     try {
       await API.delete(`/public-rooms/${roomId}`);
 
-      // 从列表中移除
       set((state) => ({
         rooms: state.rooms.filter((room) => room._id !== roomId),
       }));
@@ -416,8 +336,7 @@ export const usePublicRoom = create<PublicRoomState>()((set, get) => ({
       toast.success("Public room deleted successfully");
       return true;
     } catch (error) {
-      console.error("Delete public room error:", error);
-      toast.error(getErrorMessage(error, "Failed to delete public room"));
+      handleError(error, "Delete public room", "Failed to delete public room");
       return false;
     }
   },

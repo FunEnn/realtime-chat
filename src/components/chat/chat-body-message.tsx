@@ -2,11 +2,11 @@
 
 import { Reply } from "lucide-react";
 import { memo, useCallback, useRef } from "react";
+import AvatarWithBadge from "@/components/shared/avatar-with-badge";
 import { useAuth } from "@/hooks/use-clerk-auth";
-import { formatChatTime } from "@/lib/helper";
 import { cn } from "@/lib/utils";
+import { formatChatTime } from "@/lib/utils/user-utils";
 import type { MessageType } from "@/types/chat.type";
-import AvatarWithBadge from "../avatar-with-badge";
 import { Button } from "../ui/button";
 
 interface Props {
@@ -34,14 +34,7 @@ const ChatBodyMessage = memo(({ message, onReply }: Props) => {
     }, 500);
   }, [message, onReply]);
 
-  const handleTouchEnd = useCallback(() => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  }, []);
-
-  const handleTouchCancel = useCallback(() => {
+  const clearLongPressTimer = useCallback(() => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
@@ -108,9 +101,9 @@ const ChatBodyMessage = memo(({ message, onReply }: Props) => {
           <div
             className={messageClass}
             onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handleTouchCancel}
-            onTouchMove={handleTouchCancel}
+            onTouchEnd={clearLongPressTimer}
+            onTouchCancel={clearLongPressTimer}
+            onTouchMove={clearLongPressTimer}
           >
             {/* Header */}
             <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 pb-1">
