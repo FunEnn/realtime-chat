@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { memo, useMemo } from "react";
 import AvatarWithBadge from "@/components/shared/avatar-with-badge";
 import { useMounted } from "@/hooks/use-mounted";
+import { useSocket } from "@/hooks/use-socket";
 import { cn } from "@/lib/utils";
 import { formatChatTime, getOtherUserAndGroup } from "@/lib/utils/user-utils";
 import type { ChatType } from "@/types/chat.type";
@@ -18,10 +19,11 @@ const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
   const pathname = usePathname();
   const { lastMessage, createdAt } = chat;
   const isMounted = useMounted();
+  const { onlineUsers } = useSocket(); // ✅ 订阅在线用户状态
 
   const { name, avatar, isOnline, isGroup } = useMemo(
     () => getOtherUserAndGroup(chat, currentUserId, isMounted),
-    [chat, currentUserId, isMounted],
+    [chat, currentUserId, isMounted], // ✅ 添加 onlineUsers 依赖
   );
 
   // 格式化时间（仅在客户端）
@@ -41,7 +43,7 @@ const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
 
     if (isGroup && lastMessage.sender) {
       return `${
-        lastMessage.sender._id === currentUserId
+        lastMessage.sender.id === currentUserId
           ? "You"
           : lastMessage.sender.name
       }: ${lastMessage.content}`;
@@ -59,7 +61,7 @@ const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
       onClick={onClick}
       className={cn(
         "w-full flex items-center gap-2 p-1.5 md:p-2 rounded-sm hover:bg-sidebar-accent transition-colors text-left relative",
-        pathname.includes(chat._id) && "!bg-sidebar-accent",
+        pathname.includes(chat.id) && "!bg-sidebar-accent",
       )}
     >
       <div className="relative">
@@ -87,18 +89,17 @@ const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
           >
             {name}
           </h5>
-          {isMounted && (
-            <span
-              className={cn(
-                "text-[10px] md:text-xs ml-2 shrink-0",
-                hasUnread
-                  ? "text-foreground font-semibold"
-                  : "text-muted-foreground",
-              )}
-            >
-              {formattedTime}
-            </span>
-          )}
+          <span
+            className={cn(
+              "text-[10px] md:text-xs ml-2 shrink-0",
+              hasUnread
+                ? "text-foreground font-semibold"
+                : "text-muted-foreground",
+            )}
+            suppressHydrationWarning
+          >
+            {formattedTime}
+          </span>
         </div>
         <p
           className={cn(

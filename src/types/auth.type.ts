@@ -11,7 +11,8 @@ export type LoginInput = {
 };
 
 export type UserType = {
-  _id: string;
+  id: string;
+  clerkId?: string;
   name: string;
   email: string;
   avatar: string | null;

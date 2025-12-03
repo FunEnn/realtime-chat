@@ -54,8 +54,13 @@ const AvatarWithBadge = ({
         )}
       </Avatar>
 
-      {isMounted && isOnline && !isGroup && (
-        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 bg-green-500" />
+      {/* 在线状态点 - 使用 suppressHydrationWarning 避免 hydration 警告 */}
+      {isOnline && !isGroup && (
+        <span
+          className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 bg-green-500"
+          suppressHydrationWarning
+          style={{ display: isMounted ? undefined : "none" }}
+        />
       )}
     </div>
   );

@@ -1,0 +1,20 @@
+model User {
+  id        String   @id @default(uuid())
+  clerkId   String   @unique
+  email     String   @unique
+  name      String?
+  avatar    String?
+  bio       String?
+  isAdmin   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sentMessages    Message[]     @relation("MessageSender")
+  createdChats    Chat[]        @relation("ChatCreator")
+  chatMembers     ChatMember[]
+  createdRooms    PublicRoom[]  @relation("RoomCreator")
+  roomMemberships RoomMember[]
+  roomMessages    RoomMessage[] @relation("RoomMessageSender")
+
+  @@map("users")
+}

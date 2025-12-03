@@ -2,7 +2,7 @@
 
 import { Pencil, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ImageCropDialog } from "@/components/shared/image-crop-dialog";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useDeleteConfirmation } from "@/hooks/use-delete-confirmation";
 import { useImageUpload } from "@/hooks/use-image-upload";
-import { usePublicRoom } from "@/hooks/use-public-room";
+import {
+  checkIsAdmin,
+  deletePublicRoom,
+  leavePublicRoom,
+  updatePublicRoom,
+} from "@/lib/server/actions/public-room";
 
 interface PublicRoomSettingsDialogProps {
   roomId: string;
@@ -39,24 +44,22 @@ export const PublicRoomSettingsDialog = memo(
     trigger,
   }: PublicRoomSettingsDialogProps) => {
     const router = useRouter();
-    const {
-      updatePublicRoom,
-      isUpdating,
-      deletePublicRoom,
-      clearCurrentRoom,
-      leaveRoom,
-    } = usePublicRoom();
     const [open, setOpen] = useState(false);
+    const [isUpdating, setIsUpdating] = useState(false);
     const [name, setName] = useState(currentRoomName);
     const [description, setDescription] = useState(currentDescription || "");
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
     const {
       avatar,
       cropDialogOpen,
       setCropDialogOpen,
       tempImageSrc,
+      isUploading,
       handleAvatarChange,
       handleCropComplete,
+      uploadToCloudinary,
       resetAvatar,
     } = useImageUpload(currentAvatar);
 
@@ -68,21 +71,54 @@ export const PublicRoomSettingsDialog = memo(
       hideConfirmDialog,
     } = useDeleteConfirmation();
 
+    useEffect(() => {
+      const checkAdmin = async () => {
+        setIsCheckingAdmin(true);
+        try {
+          const result = await checkIsAdmin();
+          setIsAdmin(result.isAdmin);
+        } finally {
+          setIsCheckingAdmin(false);
+        }
+      };
+
+      checkAdmin();
+    }, []);
+
     const handleSave = async () => {
       if (!name.trim()) {
         toast.error("Room name cannot be empty");
         return;
       }
 
-      const success = await updatePublicRoom(roomId, {
-        name: name.trim(),
-        description: description.trim(),
-        avatar: avatar || undefined,
-      });
+      setIsUpdating(true);
+      try {
+        // 如果有头像且是 base64 格式，先上传到 Cloudinary
+        let avatarUrl = avatar;
+        if (avatar?.startsWith("data:")) {
+          try {
+            avatarUrl = await uploadToCloudinary(avatar);
+          } catch (uploadError) {
+            console.error("Failed to upload avatar:", uploadError);
+            // 上传失败时继续使用 base64
+          }
+        }
 
-      if (success) {
-        toast.success("Room settings updated successfully");
-        setOpen(false);
+        const result = await updatePublicRoom(roomId, {
+          name: name.trim(),
+          description: description.trim(),
+          avatar: avatarUrl || undefined,
+        });
+
+        if (result.success) {
+          toast.success("Room settings updated successfully");
+          setOpen(false);
+          router.refresh();
+        } else {
+          toast.error(result.error || "Failed to update room");
+        }
+      } finally {
+        setIsUpdating(false);
       }
     };
 
@@ -100,22 +136,33 @@ export const PublicRoomSettingsDialog = memo(
       setIsDeleting(true);
       try {
         // 先离开房间（Socket）
-        await leaveRoom(roomId);
+        await leavePublicRoom(roomId);
 
         // 再删除房间
-        const success = await deletePublicRoom(roomId);
-        if (success) {
+        const result = await deletePublicRoom(roomId);
+        if (result.success) {
+          toast.success("Room deleted successfully");
           setOpen(false);
-          clearCurrentRoom();
-          // 导航回聊天列表
           router.push("/chat");
+          router.refresh();
+        } else {
+          toast.error(result.error || "Failed to delete room");
         }
       } catch (error) {
         console.error("Delete room error:", error);
+        toast.error("Failed to delete room");
       } finally {
         setIsDeleting(false);
       }
     };
+
+    if (isCheckingAdmin) {
+      return null;
+    }
+
+    if (!isAdmin) {
+      return null;
+    }
 
     return (
       <>
@@ -198,16 +245,18 @@ export const PublicRoomSettingsDialog = memo(
                   <Button
                     variant="outline"
                     onClick={hideConfirmDialog}
-                    disabled={isDeleting}
+                    disabled={isDeleting || isUploading}
                   >
                     Cancel
                   </Button>
                   <Button
                     variant="destructive"
                     onClick={handleDelete}
-                    disabled={isDeleting}
+                    disabled={isDeleting || isUploading}
                   >
-                    {isDeleting && <Spinner className="w-4 h-4 mr-2" />}
+                    {(isDeleting || isUploading) && (
+                      <Spinner className="w-4 h-4 mr-2" />
+                    )}
                     Delete Room
                   </Button>
                 </DialogFooter>
@@ -217,7 +266,7 @@ export const PublicRoomSettingsDialog = memo(
                 <Button
                   variant="destructive"
                   onClick={showConfirmDialog}
-                  disabled={isUpdating || isDeleting}
+                  disabled={isUpdating || isDeleting || isUploading}
                 >
                   Delete Room
                 </Button>
@@ -225,16 +274,18 @@ export const PublicRoomSettingsDialog = memo(
                   <Button
                     variant="outline"
                     onClick={() => handleOpenChange(false)}
-                    disabled={isUpdating}
+                    disabled={isUpdating || isUploading}
                   >
                     Cancel
                   </Button>
                   <Button
                     onClick={handleSave}
-                    disabled={isUpdating || !name.trim()}
+                    disabled={isUpdating || isUploading || !name.trim()}
                   >
-                    {isUpdating && <Spinner className="w-4 h-4 mr-2" />}
-                    Save Changes
+                    {(isUpdating || isUploading) && (
+                      <Spinner className="w-4 h-4 mr-2" />
+                    )}
+                    {isUploading ? "Uploading..." : "Save Changes"}
                   </Button>
                 </div>
               </DialogFooter>

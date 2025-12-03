@@ -19,8 +19,9 @@ interface ImageCropDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   imageSrc: string;
-  onCropComplete: (croppedImage: string) => void;
+  onCropComplete: (croppedImage: string | Blob) => void;
   aspectRatio?: number;
+  returnBlob?: boolean; // 如果为 true，返回 Blob；否则返回 base64
 }
 
 const createImage = (url: string): Promise<HTMLImageElement> =>
@@ -35,7 +36,8 @@ async function getCroppedImg(
   imageSrc: string,
   pixelCrop: Area,
   maxSize: number = 512,
-): Promise<string> {
+  returnBlob: boolean = false,
+): Promise<string | Blob> {
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -66,14 +68,19 @@ async function getCroppedImg(
     canvas.toBlob(
       (blob) => {
         if (!blob) {
-          resolve("");
+          resolve(returnBlob ? new Blob() : "");
           return;
         }
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = () => {
-          resolve(reader.result as string);
-        };
+
+        if (returnBlob) {
+          resolve(blob);
+        } else {
+          const reader = new FileReader();
+          reader.readAsDataURL(blob);
+          reader.onloadend = () => {
+            resolve(reader.result as string);
+          };
+        }
       },
       "image/jpeg",
       0.8,
@@ -87,6 +94,7 @@ export function ImageCropDialog({
   imageSrc,
   onCropComplete,
   aspectRatio = 1,
+  returnBlob = false,
 }: ImageCropDialogProps) {
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -113,7 +121,12 @@ export function ImageCropDialog({
 
     setIsProcessing(true);
     try {
-      const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels);
+      const croppedImage = await getCroppedImg(
+        imageSrc,
+        croppedAreaPixels,
+        512,
+        returnBlob,
+      );
       onCropComplete(croppedImage);
       onOpenChange(false);
     } catch (error) {

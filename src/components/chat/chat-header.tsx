@@ -6,6 +6,7 @@ import { memo, useEffect, useMemo, useState } from "react";
 import AvatarWithBadge from "@/components/shared/avatar-with-badge";
 import { useAuth } from "@/hooks/use-clerk-auth";
 import { useMounted } from "@/hooks/use-mounted";
+import { useSocket } from "@/hooks/use-socket";
 import { getOtherUserAndGroup } from "@/lib/utils/user-utils";
 import type { ChatType, PublicRoomChatType } from "@/types/chat.type";
 import { PublicRoomSettingsDialog } from "../public-room/public-room-settings-dialog";
@@ -28,6 +29,7 @@ const ChatHeader = memo(
   }: ChatHeaderProps) => {
     const router = useRouter();
     const isMounted = useMounted();
+    const { onlineUsers } = useSocket(); // ✅ 订阅在线用户状态
 
     const {
       name,
@@ -39,7 +41,7 @@ const ChatHeader = memo(
       totalMembers,
     } = useMemo(
       () => getOtherUserAndGroup(chat, currentUserId, isMounted),
-      [chat, currentUserId, isMounted],
+      [chat, currentUserId, isMounted], // ✅ 添加 onlineUsers 依赖
     );
 
     // 检查当前用户是否为群聊创建者
@@ -81,7 +83,7 @@ const ChatHeader = memo(
           {isGroup && isCreator && !isPublicRoom ? (
             // 普通群聊：创建者点击头像编辑
             <GroupSettingsDialog
-              chatId={chat._id}
+              chatId={chat.id}
               currentGroupName={chat.groupName || ""}
               currentGroupAvatar={chat.groupAvatar}
               trigger={
@@ -101,7 +103,7 @@ const ChatHeader = memo(
           ) : isPublicRoom && isAdmin ? (
             // 公共聊天室：管理员点击头像编辑
             <PublicRoomSettingsDialog
-              roomId={chat._id}
+              roomId={chat.id}
               currentRoomName={
                 "name" in chat ? chat.name : chat.groupName || ""
               }
@@ -155,7 +157,7 @@ const ChatHeader = memo(
           </div>
         </div>
         <div className="flex items-center gap-1 md:gap-2 mr-2 md:mr-4">
-          {!isPublicRoom && <ChatHistoryDialog chatId={chat._id} />}
+          {!isPublicRoom && <ChatHistoryDialog chatId={chat.id} />}
           {customActions}
         </div>
       </div>

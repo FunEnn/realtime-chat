@@ -2,7 +2,7 @@
 
 import { Users } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ImageCropDialog } from "@/components/shared/image-crop-dialog";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,10 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useImageUpload } from "@/hooks/use-image-upload";
-import { usePublicRoom } from "@/hooks/use-public-room";
+import {
+  checkIsAdmin,
+  createPublicRoom as createPublicRoomAction,
+} from "@/lib/server/actions/public-room";
 
 interface CreatePublicRoomDialogProps {
   trigger?: React.ReactNode;
@@ -30,21 +33,38 @@ export default function CreatePublicRoomDialog({
   trigger,
 }: CreatePublicRoomDialogProps) {
   const router = useRouter();
-  const { createPublicRoom } = usePublicRoom();
   const [open, setOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
   const {
     avatar,
     cropDialogOpen,
     setCropDialogOpen,
     tempImageSrc,
+    isUploading,
     handleAvatarChange,
     handleCropComplete,
+    uploadToCloudinary,
     resetAvatar,
   } = useImageUpload();
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      setIsCheckingAdmin(true);
+      try {
+        const result = await checkIsAdmin();
+        setIsAdmin(result.isAdmin);
+      } finally {
+        setIsCheckingAdmin(false);
+      }
+    };
+
+    checkAdmin();
+  }, []);
 
   const resetForm = () => {
     setName("");
@@ -60,16 +80,31 @@ export default function CreatePublicRoomDialog({
 
     setIsCreating(true);
     try {
-      const room = await createPublicRoom({
+      // 如果有头像且是 base64 格式，先上传到 Cloudinary
+      let avatarUrl = avatar;
+      if (avatar?.startsWith("data:")) {
+        try {
+          avatarUrl = await uploadToCloudinary(avatar);
+        } catch (uploadError) {
+          console.error("Failed to upload avatar:", uploadError);
+          // 上传失败时继续使用 base64
+        }
+      }
+
+      const result = await createPublicRoomAction({
         name: name.trim(),
         description: description.trim(),
-        avatar: avatar || undefined,
+        avatar: avatarUrl || undefined,
       });
 
-      if (room) {
+      if (result.success && result.room) {
         resetForm();
         setOpen(false);
-        router.push(`/chat/public-room/${room._id}`);
+        toast.success("Public room created successfully");
+        router.push(`/chat/public-room/${result.room.id}`);
+        router.refresh();
+      } else {
+        toast.error(result.error || "Failed to create public room");
       }
     } finally {
       setIsCreating(false);
@@ -82,6 +117,14 @@ export default function CreatePublicRoomDialog({
       resetForm();
     }
   };
+
+  if (isCheckingAdmin) {
+    return null;
+  }
+
+  if (!isAdmin) {
+    return null;
+  }
 
   return (
     <>
@@ -177,16 +220,18 @@ export default function CreatePublicRoomDialog({
               <Button
                 variant="outline"
                 onClick={() => setOpen(false)}
-                disabled={isCreating}
+                disabled={isCreating || isUploading}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleCreate}
-                disabled={isCreating || !name.trim()}
+                disabled={isCreating || isUploading || !name.trim()}
               >
-                {isCreating && <Spinner className="mr-2 w-4 h-4" />}
-                Create Room
+                {(isCreating || isUploading) && (
+                  <Spinner className="mr-2 w-4 h-4" />
+                )}
+                {isUploading ? "Uploading..." : "Create Room"}
               </Button>
             </DialogFooter>
           </DialogContent>

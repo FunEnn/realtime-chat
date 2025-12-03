@@ -1,6 +1,8 @@
 "use client";
 
 import { Search } from "lucide-react";
+import { useSocket } from "@/hooks/use-socket";
+import type { UserType } from "@/types/auth.type";
 import {
   InputGroup,
   InputGroupAddon,
@@ -8,13 +10,25 @@ import {
 } from "../ui/input-group";
 import { NewChatPopover } from "./newchat-popover";
 
-const ChatListHeader = ({ onSearch }: { onSearch: (val: string) => void }) => {
+interface ChatListHeaderProps {
+  onSearch: (val: string) => void;
+  users?: UserType[];
+}
+
+const ChatListHeader = ({ onSearch, users }: ChatListHeaderProps) => {
+  const { onlineUsers, isConnected } = useSocket();
+
   return (
     <div className="px-2 md:px-3 py-2.5 md:py-3 border-b border-border">
       <div className="flex items-center justify-between mb-2 md:mb-3">
-        <h1 className="text-lg md:text-xl font-semibold">Chat</h1>
+        <h1 className="text-lg md:text-xl font-semibold">
+          Chat
+          <span className="text-xs ml-2 text-muted-foreground">
+            ({isConnected ? "🟢" : "🔴"} {onlineUsers.length} online)
+          </span>
+        </h1>
         <div>
-          <NewChatPopover />
+          <NewChatPopover users={users} />
         </div>
       </div>
       <div>

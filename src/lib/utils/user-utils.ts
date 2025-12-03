@@ -44,7 +44,7 @@ export const getOtherUserAndGroup = (
 
   if (isGroup && "participants" in chat) {
     const onlineCount = isMounted
-      ? chat.participants.filter((p) => checkUserOnline(p._id, onlineUsers))
+      ? chat.participants.filter((p) => checkUserOnline(p.id, onlineUsers))
           .length
       : 0;
     const totalMembers = chat.participants.length;
@@ -72,8 +72,20 @@ export const getOtherUserAndGroup = (
     };
   }
 
-  const other = chat.participants.find((p) => p._id !== currentUserId);
-  const isOnline = other?._id ? checkUserOnline(other._id, onlineUsers) : false;
+  const other = chat.participants.find((p) => p.id !== currentUserId);
+  const isOnline = other?.id ? checkUserOnline(other.id, onlineUsers) : false;
+
+  // 调试日志 - 只显示前3个聊天
+  if (other && isMounted && Math.random() < 0.1) {
+    console.log("[UserUtils] Chat item online check:", {
+      chatId: "chatId" in chat ? chat.id : "unknown",
+      userName: other?.name,
+      userId: other.id,
+      onlineUsersCount: onlineUsers.length,
+      isInOnlineList: onlineUsers.includes(other.id),
+      isOnline,
+    });
+  }
 
   return {
     name: other?.name || "Unknown",

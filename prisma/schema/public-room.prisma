@@ -1,0 +1,51 @@
+model PublicRoom {
+  id          String   @id @default(uuid())
+  name        String
+  avatar      String?
+  description String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creator  User          @relation("RoomCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  members  RoomMember[]
+  messages RoomMessage[]
+
+  @@index([createdById])
+  @@index([createdAt])
+  @@map("public_rooms")
+}
+
+model RoomMember {
+  id       String   @id @default(uuid())
+  roomId   String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  room PublicRoom @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([userId])
+  @@index([roomId])
+  @@map("room_members")
+}
+
+model RoomMessage {
+  id        String   @id @default(uuid())
+  content   String?  @db.Text
+  image     String?
+  roomId    String
+  senderId  String
+  replyToId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  room   PublicRoom @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sender User       @relation("RoomMessageSender", fields: [senderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([roomId, createdAt])
+  @@index([senderId])
+  @@index([replyToId])
+  @@map("room_messages")
+}

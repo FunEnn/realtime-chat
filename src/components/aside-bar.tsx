@@ -24,7 +24,7 @@ const AsideBar = () => {
   const { theme, setTheme } = useTheme();
   const mounted = useMounted();
 
-  const isOnline = isUserOnline(user?._id);
+  const isOnline = isUserOnline(user?.id);
 
   const handleThemeToggle = () => {
     setTheme(theme === "light" ? "dark" : "light");

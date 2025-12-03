@@ -39,19 +39,20 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
     set({ isLoading: true });
     try {
-      const { data } = await API.post<{ user: UserType }>("/auth/clerk-sync", {
+      const response = await API.post("/auth/clerk-sync", {
         clerkId: clerkUser.id,
         email: clerkUser.primaryEmailAddress?.emailAddress,
         name: clerkUser.fullName || clerkUser.firstName || "User",
         avatar: clerkUser.imageUrl,
       });
 
-      set({ user: data.user });
+      const user = response.data?.data || response.data?.user || response.data;
+      set({ user });
     } catch (error) {
       console.error("Sync with backend failed:", error);
       set({
         user: {
-          _id: clerkUser.id,
+          id: clerkUser.id,
           name: clerkUser.fullName || clerkUser.firstName || "User",
           email: clerkUser.primaryEmailAddress?.emailAddress || "",
           avatar: clerkUser.imageUrl || null,

@@ -12,16 +12,23 @@ import { Button } from "../ui/button";
 interface Props {
   message: MessageType;
   onReply: (message: MessageType) => void;
+  currentUserId?: string; // 添加可选的 currentUserId prop
 }
 
-const ChatBodyMessage = memo(({ message, onReply }: Props) => {
+const ChatBodyMessage = memo(({ message, onReply, currentUserId }: Props) => {
   const { user } = useAuth();
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
 
-  const userId = user?._id || null;
-  const isCurrentUser = message.sender?._id === userId;
+  // 优先使用传入的 currentUserId，否则使用 useAuth
+  const userId = currentUserId || user?.id || null;
+  const isCurrentUser = message.sender?.id === userId;
   const senderName = isCurrentUser ? "You" : message.sender?.name;
+
+  // @ts-expect-error - 检查临时标记
+  const isSending = message._sending === true;
+  // @ts-expect-error
+  const isFailed = message._failed === true;
 
   const handleTouchStart = useCallback(() => {
     isLongPressRef.current = false;
@@ -52,7 +59,7 @@ const ChatBodyMessage = memo(({ message, onReply }: Props) => {
   }
 
   const replySendername =
-    message.replyTo?.sender?._id === userId
+    message.replyTo?.sender?.id === userId
       ? "You"
       : message.replyTo?.sender?.name;
 
@@ -162,9 +169,19 @@ const ChatBodyMessage = memo(({ message, onReply }: Props) => {
           </Button>
         </div>
 
-        {message.status && (
-          <span className="block text-[10px] text-gray-400 mt-0.5">
-            {message.status}
+        {/* 消息状态：发送中、失败 */}
+        {(isSending || isFailed || message.status) && (
+          <span
+            className={cn(
+              "block text-[10px] mt-0.5",
+              isFailed ? "text-red-500" : "text-gray-400",
+            )}
+          >
+            {isFailed
+              ? "Failed to send"
+              : isSending
+                ? "Sending..."
+                : message.status}
           </span>
         )}
       </div>

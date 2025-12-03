@@ -2,7 +2,7 @@ import type { UserType } from "./auth.type";
 import type { MessageType } from "./chat.type";
 
 export type PublicRoomType = {
-  _id: string;
+  id: string;
   name: string;
   description: string;
   avatar?: string;
@@ -13,6 +13,9 @@ export type PublicRoomType = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  _count?: {
+    members: number;
+  };
 };
 
 export type CreatePublicRoomInput = {

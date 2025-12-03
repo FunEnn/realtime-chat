@@ -1,87 +1,57 @@
-"use client";
+import { auth } from "@clerk/nextjs/server";
+import { notFound, redirect } from "next/navigation";
+import {
+  mapChatToChatType,
+  mapMessageToMessageType,
+} from "@/lib/server/mappers/chat.mapper";
+import * as chatService from "@/lib/server/services/chat.service";
+import * as messageService from "@/lib/server/services/message.service";
+import * as userService from "@/lib/server/services/user.service";
+import SingleChatClient from "./page-client";
 
-import { useEffect, useState } from "react";
-import ChatBody from "@/components/chat/chat-body";
-import ChatFooter from "@/components/chat/chat-footer";
-import ChatHeader from "@/components/chat/chat-header";
-import EmptyState from "@/components/empty-state";
-import { Spinner } from "@/components/ui/spinner";
-import { useChat } from "@/hooks/use-chat";
-import { useChatId } from "@/hooks/use-chat-id";
-import { useAuth } from "@/hooks/use-clerk-auth";
-import { useSocket } from "@/hooks/use-socket";
-import type { MessageType } from "@/types/chat.type";
+export default async function SingleChatPage({
+  params,
+}: {
+  params: Promise<{ chatId: string }>;
+}) {
+  const { chatId } = await params;
+  const { userId } = await auth();
 
-const SingleChat = () => {
-  const chatId = useChatId();
-  const { fetchSingleChat, isSingleChatLoading, singleChat } = useChat();
-  const { socket } = useSocket();
-  const { user } = useAuth();
-
-  const [replyTo, setReplyTo] = useState<MessageType | null>(null);
-
-  const currentUserId = user?._id || null;
-  const chat = singleChat?.chat;
-  const messages = singleChat?.messages || [];
-  const isChatMismatch = chat && chat._id !== chatId;
-
-  useEffect(() => {
-    if (!chatId) return;
-    fetchSingleChat(chatId);
-  }, [fetchSingleChat, chatId]);
-
-  //Socket Chat room
-  useEffect(() => {
-    if (!chatId || !socket) return;
-
-    socket.emit("chat:join", chatId);
-    return () => {
-      socket.emit("chat:leave", chatId);
-    };
-  }, [chatId, socket]);
-
-  if (isSingleChatLoading || isChatMismatch) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <Spinner className="w-11 h-11 text-primary!" />
-      </div>
-    );
+  if (!userId) {
+    redirect("/sign-in");
   }
+
+  const user = await userService.findUserByClerkId(userId);
+
+  if (!user) {
+    redirect("/sign-in");
+  }
+
+  const chat = await chatService.findChatById(chatId);
 
   if (!chat) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <p className="text-lg">Chat not found</p>
-      </div>
-    );
+    notFound();
   }
 
+  const isMember = await chatService.isUserInChat(chatId, user.id);
+
+  if (!isMember) {
+    notFound();
+  }
+
+  const { messages } = await messageService.findMessagesByChatId(chatId);
+
+  // 转换为客户端期望的类型
+  const chatType = mapChatToChatType(chat);
+  const messageTypes = messages.map(mapMessageToMessageType);
+
   return (
-    <div
-      className="relative h-svh flex flex-col animate-slide-in-left lg:animate-none"
-      data-chat-container
-    >
-      <ChatHeader chat={chat} currentUserId={currentUserId} />
-
-      <div className="flex-1 overflow-y-auto bg-background">
-        {messages.length === 0 ? (
-          <EmptyState
-            title="Start a conversation"
-            description="No messages yet. Send the first message"
-          />
-        ) : (
-          <ChatBody chatId={chatId} messages={messages} onReply={setReplyTo} />
-        )}
-      </div>
-
-      <ChatFooter
-        replyTo={replyTo}
-        chatId={chatId}
-        currentUserId={currentUserId}
-        onCancelReply={() => setReplyTo(null)}
-      />
-    </div>
+    <SingleChatClient
+      key={chatId}
+      initialChat={chatType}
+      initialMessages={messageTypes}
+      chatId={chatId}
+      currentUserId={user.id}
+    />
   );
-};
-
-export default SingleChat;
+}

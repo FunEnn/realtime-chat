@@ -42,6 +42,7 @@ const SharedChatFooter = memo(
     showReplyBar = true,
   }: SharedChatFooterProps) => {
     const [image, setImage] = useState<string | null>(null);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
     const imageInputRef = useRef<HTMLInputElement | null>(null);
 
     const form = useForm({
@@ -55,27 +56,29 @@ const SharedChatFooter = memo(
       async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (!file.type.startsWith("image/")) {
-          toast.error("Please select an image file");
-          return;
-        }
 
         try {
-          toast.loading("Compressing image...", { id: "compress" });
-          const { compressImage, getBase64Size } = await import(
-            "@/lib/utils/image-compression"
+          const { validateImageFile, fileToDataUrl } = await import(
+            "@/lib/client/image-upload-api"
           );
 
-          const compressed = await compressImage(file, 2, 1920, 0.8);
-          const sizeMB = getBase64Size(compressed);
+          // 验证文件
+          const validation = validateImageFile(file);
+          if (!validation.valid) {
+            toast.error(validation.error || "Invalid file");
+            return;
+          }
 
-          toast.success(`Image compressed to ${sizeMB.toFixed(2)}MB`, {
-            id: "compress",
-          });
-          setImage(compressed);
+          toast.loading("Processing image...", { id: "image-process" });
+
+          // 转换为 base64，先不上传
+          const dataUrl = await fileToDataUrl(file);
+          setImage(dataUrl);
+
+          toast.success("Image ready", { id: "image-process" });
         } catch (error) {
-          console.error("Image compression failed:", error);
-          toast.error("Failed to compress image", { id: "compress" });
+          console.error("Image processing failed:", error);
+          toast.error("Failed to process image", { id: "image-process" });
         }
       },
       [],
@@ -87,8 +90,8 @@ const SharedChatFooter = memo(
     }, []);
 
     const onSubmit = useCallback(
-      (values: { message?: string }) => {
-        if (isSendingMsg) return;
+      async (values: { message?: string }) => {
+        if (isSendingMsg || isUploadingImage) return;
         if (!chatId) {
           toast.error("Chat ID is not available");
           return;
@@ -98,10 +101,38 @@ const SharedChatFooter = memo(
           return;
         }
 
+        // 如果有图片且是 base64 格式，先上传到 Cloudinary
+        let imageUrl = image;
+        if (image?.startsWith("data:")) {
+          setIsUploadingImage(true);
+          try {
+            const response = await fetch("/api/upload", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ file: image }),
+            });
+
+            if (!response.ok) {
+              throw new Error("Failed to upload image");
+            }
+
+            const data = await response.json();
+            imageUrl = data.url;
+          } catch (uploadError) {
+            console.error("Failed to upload image to Cloudinary:", uploadError);
+            // 上传失败时继续使用 base64
+            toast.error("Failed to upload image, using fallback");
+          } finally {
+            setIsUploadingImage(false);
+          }
+        }
+
         sendMessage({
           chatId,
           content: values.message,
-          image: image || undefined,
+          image: imageUrl || undefined,
           replyTo,
         });
 
@@ -111,6 +142,7 @@ const SharedChatFooter = memo(
       },
       [
         isSendingMsg,
+        isUploadingImage,
         image,
         chatId,
         replyTo,
@@ -155,7 +187,7 @@ const SharedChatFooter = memo(
                   type="button"
                   variant="outline"
                   size="icon"
-                  disabled={isSendingMsg}
+                  disabled={isSendingMsg || isUploadingImage}
                   className="rounded-full h-9 w-9 md:h-10 md:w-10"
                   onClick={() => imageInputRef.current?.click()}
                 >
@@ -165,7 +197,7 @@ const SharedChatFooter = memo(
                   type="file"
                   className="hidden"
                   accept="image/*"
-                  disabled={isSendingMsg}
+                  disabled={isSendingMsg || isUploadingImage}
                   ref={imageInputRef}
                   onChange={handleImageChange}
                 />
@@ -174,7 +206,7 @@ const SharedChatFooter = memo(
               <FormField
                 control={form.control}
                 name="message"
-                disabled={isSendingMsg}
+                disabled={isSendingMsg || isUploadingImage}
                 render={({ field }) => (
                   <FormItem className="flex-1">
                     <Input
@@ -191,9 +223,13 @@ const SharedChatFooter = memo(
                 type="submit"
                 size="icon"
                 className="rounded-lg h-9 w-9 md:h-10 md:w-10"
-                disabled={isSendingMsg}
+                disabled={isSendingMsg || isUploadingImage}
               >
-                <Send className="h-3.5 w-3.5" />
+                {isUploadingImage ? (
+                  <div className="animate-spin h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full" />
+                ) : (
+                  <Send className="h-3.5 w-3.5" />
+                )}
               </Button>
             </form>
           </Form>

@@ -5,7 +5,11 @@ import { create } from "zustand";
 import { getAuthToken } from "@/lib/api/axios-client";
 
 const SOCKET_URL =
-  process.env.NEXT_PUBLIC_SOCKET_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "";
+  process.env.NEXT_PUBLIC_SOCKET_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (typeof window !== "undefined"
+    ? window.location.origin
+    : "http://localhost:3000");
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 3000;
@@ -27,7 +31,9 @@ export const useSocket = create<SocketState>()((set, get) => ({
 
   connectSocket: async () => {
     const existingSocket = get().socket;
-    if (existingSocket?.connected) return;
+    if (existingSocket?.connected) {
+      return;
+    }
 
     if (existingSocket && !existingSocket.connected) {
       existingSocket.removeAllListeners();
@@ -35,9 +41,12 @@ export const useSocket = create<SocketState>()((set, get) => ({
     }
 
     const token = getAuthToken();
-    if (!token) return;
+    if (!token) {
+      return;
+    }
 
     const socketConfig = {
+      path: "/api/socket/io",
       withCredentials: true,
       autoConnect: true,
       reconnection: true,
@@ -60,12 +69,12 @@ export const useSocket = create<SocketState>()((set, get) => ({
       set({ isConnected: true, reconnectAttempts: 0 });
     });
 
-    newSocket.on("disconnect", (_reason) => {
+    newSocket.on("disconnect", () => {
       set({ isConnected: false });
     });
 
     newSocket.on("connect_error", (error) => {
-      console.error("Socket connection error:", error);
+      console.error("[Socket] Connection error:", error.message);
       set((state) => ({
         reconnectAttempts: state.reconnectAttempts + 1,
         isConnected: false,

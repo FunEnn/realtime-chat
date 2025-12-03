@@ -1,6 +1,7 @@
 "use client";
 
 import { Pencil, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { memo, useState } from "react";
 import { toast } from "sonner";
 import { ImageCropDialog } from "@/components/shared/image-crop-dialog";
@@ -16,9 +17,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { useChat } from "@/hooks/use-chat";
 import { useDeleteConfirmation } from "@/hooks/use-delete-confirmation";
 import { useImageUpload } from "@/hooks/use-image-upload";
+import { deleteChat, updateChatInfo } from "@/lib/server/actions/chat";
 
 interface GroupSettingsDialogProps {
   chatId: string;
@@ -34,17 +35,20 @@ export const GroupSettingsDialog = memo(
     currentGroupAvatar,
     trigger,
   }: GroupSettingsDialogProps) => {
-    const { updateGroupInfo, isUpdatingGroup, deleteGroupChat } = useChat();
+    const router = useRouter();
     const [open, setOpen] = useState(false);
     const [groupName, setGroupName] = useState(currentGroupName);
+    const [isUpdating, setIsUpdating] = useState(false);
 
     const {
       avatar: groupAvatar,
       cropDialogOpen,
       setCropDialogOpen,
       tempImageSrc,
+      isUploading,
       handleAvatarChange,
       handleCropComplete,
+      uploadToCloudinary,
       resetAvatar,
     } = useImageUpload(currentGroupAvatar);
 
@@ -57,14 +61,33 @@ export const GroupSettingsDialog = memo(
         return;
       }
 
-      const success = await updateGroupInfo(chatId, {
-        groupName: groupName.trim(),
-        groupAvatar: groupAvatar || undefined,
-      });
+      setIsUpdating(true);
+      try {
+        // 如果有头像且是 base64 格式，先上传到 Cloudinary
+        let avatarUrl = groupAvatar;
+        if (groupAvatar?.startsWith("data:")) {
+          try {
+            avatarUrl = await uploadToCloudinary(groupAvatar);
+          } catch (uploadError) {
+            console.error("Failed to upload avatar:", uploadError);
+            // 上传失败时继续使用 base64
+          }
+        }
 
-      if (success) {
-        toast.success("Group settings updated successfully");
-        setOpen(false);
+        const result = await updateChatInfo(chatId, {
+          name: groupName.trim(),
+          avatar: avatarUrl || undefined,
+        });
+
+        if (result.success) {
+          toast.success("Group settings updated successfully");
+          setOpen(false);
+          router.refresh(); // 刷新 Server Component 数据
+        } else {
+          toast.error(result.error?.message || "Failed to update group");
+        }
+      } finally {
+        setIsUpdating(false);
       }
     };
 
@@ -78,11 +101,14 @@ export const GroupSettingsDialog = memo(
     };
 
     const handleDelete = async () => {
-      const success = await deleteGroupChat(chatId);
-      if (success) {
+      const result = await deleteChat(chatId);
+      if (result.success) {
+        toast.success("Group deleted successfully");
         setOpen(false);
-        // 导航回聊天列表
-        window.location.href = "/chat";
+        router.push("/chat");
+        router.refresh();
+      } else {
+        toast.error(result.error?.message || "Failed to delete group");
       }
     };
 
@@ -148,10 +174,18 @@ export const GroupSettingsDialog = memo(
                   be undone. All messages will be permanently deleted.
                 </p>
                 <DialogFooter>
-                  <Button variant="outline" onClick={hideConfirmDialog}>
+                  <Button
+                    variant="outline"
+                    onClick={hideConfirmDialog}
+                    disabled={isUploading}
+                  >
                     Cancel
                   </Button>
-                  <Button variant="destructive" onClick={handleDelete}>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDelete}
+                    disabled={isUploading}
+                  >
                     Delete Group
                   </Button>
                 </DialogFooter>
@@ -161,7 +195,7 @@ export const GroupSettingsDialog = memo(
                 <Button
                   variant="destructive"
                   onClick={showConfirmDialog}
-                  disabled={isUpdatingGroup}
+                  disabled={isUpdating || isUploading}
                 >
                   Delete Group
                 </Button>
@@ -169,16 +203,18 @@ export const GroupSettingsDialog = memo(
                   <Button
                     variant="outline"
                     onClick={() => handleOpenChange(false)}
-                    disabled={isUpdatingGroup}
+                    disabled={isUpdating || isUploading}
                   >
                     Cancel
                   </Button>
                   <Button
                     onClick={handleSave}
-                    disabled={isUpdatingGroup || !groupName.trim()}
+                    disabled={isUpdating || isUploading || !groupName.trim()}
                   >
-                    {isUpdatingGroup && <Spinner className="w-4 h-4 mr-2" />}
-                    Save Changes
+                    {(isUpdating || isUploading) && (
+                      <Spinner className="w-4 h-4 mr-2" />
+                    )}
+                    {isUploading ? "Uploading..." : "Save Changes"}
                   </Button>
                 </div>
               </DialogFooter>

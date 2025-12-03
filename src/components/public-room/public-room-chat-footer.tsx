@@ -1,8 +1,9 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useTransition } from "react";
+import { toast } from "sonner";
 import SharedChatFooter from "@/components/shared/shared-chat-footer";
-import { usePublicRoom } from "@/hooks/use-public-room";
+import { sendRoomMessage } from "@/lib/server/actions/public-room";
 import type { MessageType } from "@/types/chat.type";
 
 interface PublicRoomChatFooterProps {
@@ -19,7 +20,29 @@ const PublicRoomChatFooter = memo(
     replyTo,
     onCancelReply,
   }: PublicRoomChatFooterProps) => {
-    const { sendMessage, isSendingMsg } = usePublicRoom();
+    const [isPending, startTransition] = useTransition();
+
+    const handleSendMessage = async (payload: {
+      chatId: string | null;
+      content?: string;
+      image?: string;
+      replyTo?: MessageType | null;
+    }) => {
+      if (!payload.chatId) return;
+
+      startTransition(async () => {
+        const result = await sendRoomMessage({
+          roomId: payload.chatId!,
+          content: payload.content,
+          image: payload.image,
+          replyToId: payload.replyTo?.id,
+        });
+
+        if (!result.success) {
+          toast.error(result.error || "Failed to send message");
+        }
+      });
+    };
 
     return (
       <SharedChatFooter
@@ -27,8 +50,8 @@ const PublicRoomChatFooter = memo(
         currentUserId={currentUserId}
         replyTo={replyTo}
         onCancelReply={onCancelReply}
-        isSendingMsg={isSendingMsg}
-        sendMessage={sendMessage}
+        isSendingMsg={isPending}
+        sendMessage={handleSendMessage}
         showReplyBar={true}
       />
     );

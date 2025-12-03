@@ -14,19 +14,19 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
-import { useChat } from "@/hooks/use-chat";
 import type { ChatType, MessageType } from "@/types/chat.type";
 
 interface ChatHistoryDialogProps {
   trigger?: React.ReactNode;
   chatId?: string;
+  chats?: ChatType[]; // 从 Server Component 传入
 }
 
 export default function ChatHistoryDialog({
   trigger,
   chatId,
+  chats = [],
 }: ChatHistoryDialogProps) {
-  const { chats, fetchChatHistory } = useChat();
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
@@ -54,17 +54,46 @@ export default function ChatHistoryDialog({
 
   // 获取选中聊天室的历史消息
   useEffect(() => {
-    if (open && activeChatId) {
-      setIsLoading(true);
-      fetchChatHistory(activeChatId)
-        .then((messages) => {
-          setChatMessages(messages);
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
+    if (!open || !activeChatId) {
+      return;
     }
-  }, [open, activeChatId, fetchChatHistory]);
+
+    let cancelled = false;
+
+    const fetchMessages = async () => {
+      setIsLoading(true);
+      setChatMessages([]);
+
+      try {
+        const { getChatMessages } = await import("@/lib/server/actions/chat");
+        const result = await getChatMessages(activeChatId);
+
+        if (cancelled) return;
+
+        if (result.success && result.data?.messages) {
+          setChatMessages(result.data.messages);
+        } else {
+          console.error("Failed to fetch messages:", result.error);
+          setChatMessages([]);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Error fetching messages:", error);
+        setChatMessages([]);
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchMessages();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, activeChatId]);
 
   // 当对话框关闭时重置状态
   useEffect(() => {
@@ -76,16 +105,14 @@ export default function ChatHistoryDialog({
     }
   }, [open]);
 
-  // 获取所有聊天记录和消息
   const allHistory = useMemo(() => {
     if (activeChatId && chatMessages.length > 0) {
-      const currentChat = chats.find((c) => c._id === activeChatId);
-      if (!currentChat) return [];
+      const currentChat = chats.find((c) => c.id === activeChatId);
 
       return chatMessages.map((message) => ({
         type: "message" as const,
         message,
-        chat: currentChat,
+        chat: currentChat || null,
       }));
     }
 
@@ -96,13 +123,11 @@ export default function ChatHistoryDialog({
     }));
   }, [chats, activeChatId, chatMessages]);
 
-  // 过滤历史记录
   const filteredHistory = useMemo(() => {
     return allHistory.filter((item) => {
       if (item.type === "message") {
         const { message } = item;
 
-        // 搜索过滤
         const matchesSearch =
           !searchQuery ||
           message.sender?.name
@@ -110,7 +135,6 @@ export default function ChatHistoryDialog({
             .includes(searchQuery.toLowerCase()) ||
           message.content?.toLowerCase().includes(searchQuery.toLowerCase());
 
-        // 日期过滤
         const matchesDate =
           !dateFilter ||
           (message.createdAt &&
@@ -121,7 +145,6 @@ export default function ChatHistoryDialog({
 
       const { chat, lastMessage } = item;
 
-      // 搜索过滤
       const matchesSearch =
         !searchQuery ||
         chat.groupName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -130,7 +153,6 @@ export default function ChatHistoryDialog({
         ) ||
         lastMessage?.content?.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // 日期过滤
       const matchesDate =
         !dateFilter ||
         (lastMessage?.createdAt &&
@@ -140,7 +162,6 @@ export default function ChatHistoryDialog({
     });
   }, [allHistory, searchQuery, dateFilter, safeFormatDate]);
 
-  // 按日期分组
   const groupedHistory = useMemo(() => {
     const groups: Record<string, typeof filteredHistory> = {};
 
@@ -171,7 +192,7 @@ export default function ChatHistoryDialog({
     if (chat.isGroup) {
       return chat.groupName || "Unnamed Group";
     }
-    const otherUser = chat.participants.find((p) => p._id !== chat.createdBy);
+    const otherUser = chat.participants.find((p) => p.id !== chat.createdBy);
     return otherUser?.name || "Unknown";
   };
 
@@ -203,7 +224,7 @@ export default function ChatHistoryDialog({
             )}
             <DialogTitle className="text-sm sm:text-base md:text-lg">
               {selectedChatId && !chatId
-                ? chats.find((c) => c._id === selectedChatId)?.groupName ||
+                ? chats.find((c) => c.id === selectedChatId)?.groupName ||
                   "Chat History"
                 : "Chat History"}
             </DialogTitle>
@@ -278,7 +299,7 @@ export default function ChatHistoryDialog({
                       if (item.type === "message") {
                         return (
                           <div
-                            key={item.message._id}
+                            key={item.message.id}
                             className="w-full p-1.5 sm:p-2 md:p-3 rounded-md sm:rounded-lg border text-left"
                           >
                             <div className="flex items-start justify-between mb-0.5 sm:mb-1">
@@ -328,16 +349,16 @@ export default function ChatHistoryDialog({
                       return (
                         <button
                           type="button"
-                          key={item.chat._id}
+                          key={item.chat.id}
                           className="w-full p-1.5 sm:p-2 md:p-3 rounded-md sm:rounded-lg border hover:bg-accent active:bg-accent focus:bg-accent transition-colors cursor-pointer text-left"
                           onClick={() => {
                             if (chatId) {
                               // 如果是从聊天室内打开的，则跳转
-                              window.location.href = `/chat/${item.chat._id}`;
+                              window.location.href = `/chat/${item.chat.id}`;
                               setOpen(false);
                             } else {
                               // 如果是从聊天列表打开的，则在对话框内查看历史
-                              setSelectedChatId(item.chat._id);
+                              setSelectedChatId(item.chat.id);
                             }
                           }}
                         >

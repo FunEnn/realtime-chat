@@ -14,7 +14,7 @@ const ChatReplyBar = ({ replyTo, currentUserId, onCancel }: Props) => {
   if (!replyTo) return null;
 
   const senderName =
-    replyTo.sender?._id === currentUserId ? "You" : replyTo.sender?.name;
+    replyTo.sender?.id === currentUserId ? "You" : replyTo.sender?.name;
 
   return (
     <div className="absolute bottom-[72px] md:bottom-[88px] left-0 right-0 bg-background border-t animate-in slide-in-from-bottom pb-3 md:pb-4 px-3 md:px-6 z-[998]">
