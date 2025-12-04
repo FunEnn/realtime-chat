@@ -48,7 +48,6 @@ NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/chat
 NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/chat
 
 # 应用地址
-NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
 
 # Cloudinary
