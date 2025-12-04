@@ -20,7 +20,25 @@ export default async function ChatLayout({
     redirect("/sign-in");
   }
 
-  const user = await userRepository.findUserByClerkId(userId);
+  let user = await userRepository.findUserByClerkId(userId);
+
+  // 如果用户不存在，尝试从 Clerk 同步创建用户
+  if (!user) {
+    try {
+      const { clerkClient } = await import("@clerk/nextjs/server");
+      const client = await clerkClient();
+      const clerkUser = await client.users.getUser(userId);
+
+      user = await userRepository.upsertUserFromClerk(userId, {
+        email: clerkUser.emailAddresses[0]?.emailAddress || "",
+        name: clerkUser.firstName || clerkUser.username || "User",
+        avatar: clerkUser.imageUrl,
+      });
+    } catch (error) {
+      console.error("Failed to sync user from Clerk:", error);
+      redirect("/sign-in");
+    }
+  }
 
   if (!user) {
     redirect("/sign-in");
