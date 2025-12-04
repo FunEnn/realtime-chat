@@ -4,19 +4,19 @@ import { memo, useTransition } from "react";
 import { toast } from "sonner";
 import SharedChatFooter from "@/components/shared/shared-chat-footer";
 import { sendRoomMessage } from "@/lib/server/actions/public-room";
-import type { MessageWithSender } from "@/types";
+import type { MessageWithSender, RoomMessageWithSender } from "@/types";
 
 interface PublicRoomChatFooterProps {
   chatId: string | null;
   currentUserId: string | null;
-  replyTo: MessageWithSender | null;
+  replyTo: RoomMessageWithSender | null;
   onCancelReply: () => void;
   onOptimisticMessage?: (data: {
     content?: string;
     image?: string;
     tempId: string;
   }) => void;
-  onMessageSuccess?: (message: MessageWithSender) => void;
+  onMessageSuccess?: (message: RoomMessageWithSender) => void;
   onMessageFailed?: (tempId: string) => void;
 }
 
@@ -71,7 +71,7 @@ const PublicRoomChatFooter = memo(
           }
         } else {
           if (result.data && onMessageSuccess) {
-            onMessageSuccess(result.data as MessageWithSender);
+            onMessageSuccess(result.data as RoomMessageWithSender);
           }
         }
       });
@@ -81,7 +81,14 @@ const PublicRoomChatFooter = memo(
       <SharedChatFooter
         chatId={chatId}
         currentUserId={currentUserId}
-        replyTo={replyTo}
+        replyTo={
+          replyTo
+            ? ({
+                ...replyTo,
+                chatId: replyTo.roomId,
+              } as MessageWithSender)
+            : null
+        }
         onCancelReply={onCancelReply}
         isSendingMsg={isPending}
         sendMessage={handleSendMessage}

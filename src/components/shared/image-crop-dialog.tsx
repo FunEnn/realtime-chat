@@ -139,9 +139,9 @@ export function ImageCropDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPortal>
-        <DialogOverlay className="!z-[1000]" />
+        <DialogOverlay className="z-1000!" />
         <DialogContent
-          className="sm:max-w-[600px] h-[600px] flex flex-col !z-[1000]"
+          className="sm:max-w-[600px] h-[600px] flex flex-col z-1000!"
           aria-describedby={undefined}
         >
           <DialogHeader>

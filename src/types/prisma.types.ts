@@ -230,6 +230,11 @@ export type RoomMessageWithDetails = Prisma.RoomMessageGetPayload<{
 // ==================== 扩展类型（客户端使用） ====================
 
 /**
+ * 通用消息类型（支持私聊和公共聊天室）
+ */
+export type AnyMessage = MessageWithSender | RoomMessageWithSender;
+
+/**
  * 临时消息类型（客户端乐观更新）
  */
 export type OptimisticMessage = MessageWithSender & {

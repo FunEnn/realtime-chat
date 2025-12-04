@@ -24,6 +24,7 @@ CREATE TABLE "users" (
     "name" TEXT,
     "avatar" TEXT,
     "bio" TEXT,
+    "isAdmin" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -36,6 +37,7 @@ COMMENT ON COLUMN "users"."email" IS '用户邮箱';
 COMMENT ON COLUMN "users"."name" IS '用户昵称';
 COMMENT ON COLUMN "users"."avatar" IS '用户头像 URL';
 COMMENT ON COLUMN "users"."bio" IS '用户简介';
+COMMENT ON COLUMN "users"."isAdmin" IS '是否为管理员';
 
 -- ====================================
 -- 聊天会话表（私聊和群聊）
@@ -130,6 +132,8 @@ CREATE TABLE "room_members" (
     "id" TEXT NOT NULL,
     "roomId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
+    "unreadCount" INTEGER NOT NULL DEFAULT 0,
+    "lastReadAt" TIMESTAMP(3),
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "room_members_pkey" PRIMARY KEY ("id")
@@ -138,6 +142,8 @@ CREATE TABLE "room_members" (
 COMMENT ON TABLE "room_members" IS '公共聊天室成员关系表';
 COMMENT ON COLUMN "room_members"."roomId" IS '聊天室 ID';
 COMMENT ON COLUMN "room_members"."userId" IS '用户 ID';
+COMMENT ON COLUMN "room_members"."unreadCount" IS '未读消息数';
+COMMENT ON COLUMN "room_members"."lastReadAt" IS '最后阅读时间';
 COMMENT ON COLUMN "room_members"."joinedAt" IS '加入时间';
 
 -- ====================================
@@ -180,6 +186,7 @@ CREATE INDEX "messages_senderId_idx" ON "messages"("senderId");
 
 -- 聊天室成员表索引
 CREATE UNIQUE INDEX "room_members_roomId_userId_key" ON "room_members"("roomId", "userId");
+CREATE INDEX "room_members_unreadCount_idx" ON "room_members"("unreadCount");
 
 -- 聊天室消息表索引
 CREATE INDEX "room_messages_roomId_idx" ON "room_messages"("roomId");

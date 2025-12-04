@@ -142,9 +142,9 @@ export default function CreatePublicRoomDialog({
           )}
         </DialogTrigger>
         <DialogPortal>
-          <DialogOverlay className="!z-[1000]" />
+          <DialogOverlay className="z-1000!" />
           <DialogContent
-            className="sm:max-w-[500px] !z-[1000]"
+            className="sm:max-w-[500px] z-1000!"
             aria-describedby={undefined}
           >
             <DialogHeader>

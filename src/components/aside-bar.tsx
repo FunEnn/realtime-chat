@@ -32,7 +32,7 @@ const AsideBar = () => {
 
   if (!mounted) {
     return (
-      <aside className="top-0 fixed inset-y-0 w-14 md:w-16 left-0 z-[9999] h-svh bg-primary shadow-sm">
+      <aside className="top-0 fixed inset-y-0 w-14 md:w-16 left-0 z-9999 h-svh bg-primary shadow-sm">
         <div className="w-full h-full px-1.5 md:px-2 pt-3 pb-4 md:pb-6 flex flex-col items-center justify-between">
           <Link href="/chat">
             <Logo showText={false} />
@@ -43,7 +43,7 @@ const AsideBar = () => {
   }
 
   return (
-    <aside className="top-0 fixed inset-y-0 w-14 md:w-16 left-0 z-[9999] h-svh bg-primary shadow-sm">
+    <aside className="top-0 fixed inset-y-0 w-14 md:w-16 left-0 z-9999 h-svh bg-primary shadow-sm">
       <div className="w-full h-full px-1.5 md:px-2 pt-3 pb-4 md:pb-6 flex flex-col items-center justify-between">
         <Link href="/chat">
           <Logo showText={false} />
@@ -56,8 +56,8 @@ const AsideBar = () => {
             className="border-0 rounded-full bg-white/10 hover:bg-white/20 h-9 w-9 md:h-10 md:w-10"
             onClick={handleThemeToggle}
           >
-            <Sun className="h-[1rem] w-[1rem] md:h-[1.2rem] md:w-[1.2rem] scale-100 rotate-0 transition-all duration-500 dark:scale-0 dark:rotate-180 text-white" />
-            <Moon className="absolute h-[1rem] w-[1rem] md:h-[1.2rem] md:w-[1.2rem] scale-0 -rotate-180 transition-all duration-500 dark:scale-100 dark:rotate-0 text-white" />
+            <Sun className="h-4 w-4 md:h-[1.2rem] md:w-[1.2rem] scale-100 rotate-0 transition-all duration-500 dark:scale-0 dark:rotate-180 text-white" />
+            <Moon className="absolute h-4 w-4 md:h-[1.2rem] md:w-[1.2rem] scale-0 -rotate-180 transition-all duration-500 dark:scale-100 dark:rotate-0 text-white" />
           </Button>
 
           <DropdownMenu>
@@ -68,12 +68,12 @@ const AsideBar = () => {
                   src={user?.avatar || undefined}
                   isOnline={isOnline}
                   size="w-9 h-9 md:w-10 md:h-10"
-                  className="!bg-white ring-2 ring-white/20 hover:ring-white/40 transition-all cursor-pointer"
+                  className="bg-white! ring-2 ring-white/20 hover:ring-white/40 transition-all cursor-pointer"
                 />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="w-56 rounded-lg z-[99999]"
+              className="w-56 rounded-lg z-99999"
               align="end"
               side="right"
             >

@@ -159,12 +159,12 @@ export const NewChatPopover = memo(
               size="icon"
               className="h-8 w-8"
             >
-              <PenBox className="!h-5 !w-5 !stroke-1" />
+              <PenBox className="h-5 w-5 stroke-1!" />
             </Button>
           </PopoverTrigger>
           <PopoverContent
             align="start"
-            className="w-80 z-[999] p-0 rounded-xl min-h-[400px] max-h-[80vh] flex flex-col"
+            className="w-80 z-999 p-0 rounded-xl min-h-[400px] max-h-[80vh] flex flex-col"
           >
             <div className="border-b p-3 flex flex-col gap-2">
               <div className="flex items-center gap-2">

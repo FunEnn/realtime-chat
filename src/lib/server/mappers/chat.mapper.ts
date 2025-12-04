@@ -9,6 +9,7 @@ type PrismaUser = {
   name: string | null;
   avatar: string | null;
   bio: string | null;
+  isAdmin?: boolean;
 };
 
 type PrismaMessage = {
@@ -20,7 +21,7 @@ type PrismaMessage = {
   content: string | null;
   image: string | null;
   replyToId: string | null;
-  sender?: PrismaUser;
+  sender?: PrismaUser & { isAdmin: boolean };
 };
 
 type PrismaChatMember = {
@@ -32,7 +33,7 @@ type PrismaChatMember = {
   unreadCount: number;
   lastReadAt: Date | null;
   joinedAt: Date;
-  user: PrismaUser;
+  user: PrismaUser & { isAdmin: boolean };
 };
 
 type PrismaChat = {
@@ -129,14 +130,14 @@ export function mapChatToChatType(chat: PrismaChat): ChatWithDetails {
     updatedAt: chat.updatedAt,
     groupName: chat.isGroup ? chat.name : undefined,
     groupAvatar: chat.isGroup ? chat.avatar : undefined,
-    members: (chat.members ?? []) as any,
-    messages: (chat.messages ?? []) as any,
+    members: (chat.members ?? []) as typeof mappedChat.members,
+    messages: (chat.messages ?? []) as typeof mappedChat.messages,
     creator: chat.creator
-      ? ({
+      ? {
           ...chat.creator,
-          isAdmin: (chat.creator as any).isAdmin ?? false,
-        } as any)
-      : ({
+          isAdmin: chat.creator.isAdmin ?? false,
+        }
+      : {
           id: chat.createdById,
           clerkId: "",
           email: "",
@@ -146,7 +147,7 @@ export function mapChatToChatType(chat: PrismaChat): ChatWithDetails {
           isAdmin: false,
           createdAt: new Date(),
           updatedAt: new Date(),
-        } as any),
+        },
   };
   return mappedChat;
 }

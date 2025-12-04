@@ -14,9 +14,6 @@ const ChatBody = memo(({ messages, onReply, currentUserId }: ChatBodyProps) => {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const isFirstRender = useRef(true);
 
-  // Socket 消息监听已移至父组件 (page-client.tsx)
-  // 这里只负责展示通过 props 传入的 messages
-
   useEffect(() => {
     if (!messages.length) return;
 

@@ -176,7 +176,7 @@ export default function PublicRoomList() {
           onClick={() => router.push(`/chat/public-room/${room.id}`)}
           className={cn(
             "w-full flex items-center gap-2 p-1.5 md:p-2 rounded-sm hover:bg-sidebar-accent transition-colors text-left",
-            pathname.includes(room.id) && "!bg-sidebar-accent",
+            pathname.includes(room.id) && "bg-sidebar-accent!",
           )}
         >
           <div className="relative">

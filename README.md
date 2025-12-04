@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 实时聊天应用
 
-## Getting Started
+基于 Next.js 16 构建的现代化实时聊天应用，支持私聊、群聊和公共聊天室。
 
-First, run the development server:
+## 📸 功能展示
+
+- 💬 **私聊** - 一对一实时消息通信
+- 👥 **群聊** - 创建和管理群组对话
+- 🌐 **公共聊天室** - 加入公共聊天室，支持成员管理
+- 🖼️ **图片分享** - 支持图片上传和预览
+- 📝 **消息回复** - 支持回复特定消息
+- 🔔 **未读提醒** - 实时追踪未读消息数量
+
+## 🛠️ 技术栈
+
+- **前端**：Next.js 16 + TypeScript + Tailwind CSS + Shadcn UI + Zustand
+- **后端**：PostgreSQL + Prisma ORM + Socket.IO + Docker
+- **认证**：Clerk
+- **存储**：Cloudinary
+- **工具**：Biome + Husky
+
+## 🚀 快速开始
+
+### 环境要求
+- Node.js 22+
+- PostgreSQL（或使用 Docker）
+
+### 1. 安装依赖
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. 配置环境变量
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+创建 `.env` 文件：
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+# 数据库
+DATABASE_URL="postgresql://myuser:mypassword@localhost:5432/realtime_chat"
 
-## Learn More
+# Clerk 认证
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_key
+CLERK_SECRET_KEY=your_secret
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/chat
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/chat
 
-To learn more about Next.js, take a look at the following resources:
+# 应用地址
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Cloudinary
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloud_name
+NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=your_preset
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3. 启动数据库（Docker）
 
-## Deploy on Vercel
+```bash
+docker-compose up -d
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 4. 运行doc文件夹下的SQL文件
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 5. 运行项目
+
+```bash
+pnpm dev
+```
+
+访问 [http://localhost:3000](http://localhost:3000)
+
+## 🎯 核心功能
+
+### 实时通信
+- WebSocket 长连接，消息即时推送
+- 在线状态实时更新
+- 消息已读/未读状态追踪
+
+### 权限管理
+- **管理员**：创建/删除公共聊天室
+- **群主**：管理群组设置和成员
+- **成员**：发送消息、加入/离开聊天室
+
+### 消息系统
+- 文本和图片消息
+- 消息回复和引用
+- 历史记录查询
+- 乐观 UI 更新（发送即显示）

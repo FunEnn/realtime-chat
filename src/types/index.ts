@@ -6,6 +6,8 @@ export * from "../lib/utils/type-guards";
 // 通用类型
 export type { ApiError, ApiResponse } from "./common";
 export type {
+  // Message 通用类型
+  AnyMessage,
   // Chat 类型
   Chat,
   // Member 类型

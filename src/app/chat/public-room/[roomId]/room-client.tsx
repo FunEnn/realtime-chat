@@ -21,15 +21,11 @@ import {
   joinPublicRoom,
   markRoomAsRead,
 } from "@/lib/server/actions/public-room";
-import type {
-  MessageWithSender,
-  OptimisticMessage,
-  PublicRoomWithDetails,
-} from "@/types";
+import type { PublicRoomWithDetails, RoomMessageWithSender } from "@/types";
 
 interface PublicRoomClientProps {
   room: PublicRoomWithDetails;
-  initialMessages: MessageWithSender[];
+  initialMessages: RoomMessageWithSender[];
   roomId: string;
   currentUserId: string;
   isMember: boolean;
@@ -62,8 +58,8 @@ export default function PublicRoomClient({
   isMember: initialIsMember,
 }: PublicRoomClientProps) {
   const router = useRouter();
-  const [messages, setMessages] = useState<MessageWithSender[]>([]);
-  const [replyTo, setReplyTo] = useState<MessageWithSender | null>(null);
+  const [messages, setMessages] = useState<RoomMessageWithSender[]>([]);
+  const [replyTo, setReplyTo] = useState<RoomMessageWithSender | null>(null);
   const [isMember, setIsMember] = useState(initialIsMember);
   const [isJoining, startJoinTransition] = useTransition();
   const [roomData, setRoomData] = useState(room);
@@ -84,11 +80,14 @@ export default function PublicRoomClient({
   ) => {
     if (!content && !image) return null;
 
-    const optimisticMessage: OptimisticMessage = {
+    const optimisticMessage: RoomMessageWithSender & {
+      _optimistic: boolean;
+      _sending: boolean;
+    } = {
       id: tempId || `temp-${Date.now()}-${Math.random()}`,
       content: content || "",
       image: image || null,
-      chatId: roomId,
+      roomId: roomId,
       senderId: currentUserId,
       sender: {
         id: currentUserId,
@@ -102,7 +101,6 @@ export default function PublicRoomClient({
         updatedAt: new Date(),
       },
       replyToId: null,
-      replyTo: null,
       createdAt: new Date(),
       updatedAt: new Date(),
       _optimistic: true,
@@ -114,12 +112,11 @@ export default function PublicRoomClient({
   };
 
   // 添加真实消息
-  const addRealMessage = useCallback((realMessage: MessageWithSender) => {
+  const addRealMessage = useCallback((realMessage: RoomMessageWithSender) => {
     setMessages((prev) => {
       // 移除乐观消息
       const withoutOptimistic = prev.filter((m) => {
-        const isOptimistic =
-          "_optimistic" in m && (m as OptimisticMessage)._optimistic;
+        const isOptimistic = "_optimistic" in m && m._optimistic;
         return !isOptimistic;
       });
       // 检查是否已存在
@@ -135,19 +132,24 @@ export default function PublicRoomClient({
     setMessages((prev) =>
       prev.map((m) => {
         if (m.id === tempId && "_sending" in m) {
-          const failedMessage: OptimisticMessage = {
-            ...(m as OptimisticMessage),
+          return {
+            ...m,
             _sending: false,
             _failed: true,
           };
-          return failedMessage;
         }
         return m;
       }),
     );
   };
 
-  const chat = useMemo(() => roomData, [roomData]);
+  const chat = useMemo(
+    () => ({
+      ...roomData,
+      isMember,
+    }),
+    [roomData, isMember],
+  );
 
   // 加入房间并监听消息
   useEffect(() => {
@@ -161,9 +163,8 @@ export default function PublicRoomClient({
     });
 
     // 监听新消息
-    const handleNewMessage = (msg: MessageWithSender & { roomId?: string }) => {
-      const messageRoomId = msg.roomId || msg.chatId;
-      if (messageRoomId === roomId) {
+    const handleNewMessage = (msg: RoomMessageWithSender) => {
+      if (msg.roomId === roomId) {
         addRealMessage(msg);
       }
     };
@@ -194,7 +195,8 @@ export default function PublicRoomClient({
       if (updatedRoom.id === roomId) {
         setRoomData((prev) => {
           // members 可能是完整的对象数组，需要保持原始结构
-          const members = updatedRoom.members || prev.members;
+          const members =
+            (updatedRoom.members as typeof prev.members) || prev.members;
 
           // 获取成员数量：优先使用 _count.members，其次使用数组长度
           const memberCount =
@@ -278,8 +280,17 @@ export default function PublicRoomClient({
           />
         ) : (
           <ChatBody
-            messages={messages}
-            onReply={setReplyTo}
+            messages={messages.map((msg) => ({
+              ...msg,
+              chatId: msg.roomId,
+            }))}
+            onReply={(msg) => {
+              const roomMsg: RoomMessageWithSender = {
+                ...msg,
+                roomId: msg.chatId,
+              };
+              setReplyTo(roomMsg);
+            }}
             currentUserId={currentUserId}
           />
         )}
@@ -313,7 +324,7 @@ export default function PublicRoomClient({
             image?: string;
             tempId: string;
           }) => addOptimisticMessage(content, image, tempId)}
-          onMessageSuccess={(msg: MessageWithSender) => addRealMessage(msg)}
+          onMessageSuccess={(msg: RoomMessageWithSender) => addRealMessage(msg)}
           onMessageFailed={(tempId: string) => markMessageAsFailed(tempId)}
         />
       )}

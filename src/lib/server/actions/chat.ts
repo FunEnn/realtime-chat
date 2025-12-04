@@ -132,7 +132,7 @@ export async function updateChatInfo(
 
     // 使用 mapper 转换为完整的 ChatWithDetails 格式
     const { mapChatToChatType } = await import("../mappers/chat.mapper");
-    const mappedChat = mapChatToChatType(updatedChat as any);
+    const mappedChat = mapChatToChatType(updatedChat);
 
     // 通知所有参与者聊天信息已更新
     emitChatInfoUpdatedToParticipants(participantIds, mappedChat);

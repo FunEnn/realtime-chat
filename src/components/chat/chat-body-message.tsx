@@ -88,7 +88,7 @@ const ChatBodyMessage = memo(({ message, onReply, currentUserId }: Props) => {
   return (
     <div className={containerClass}>
       {!isCurrentUser && (
-        <div className="flex-shrink-0 flex items-start">
+        <div className="shrink-0 flex items-start">
           <AvatarWithBadge
             name={message.sender?.name || "No name"}
             src={message.sender?.avatar || undefined}
@@ -153,14 +153,14 @@ const ChatBodyMessage = memo(({ message, onReply, currentUserId }: Props) => {
             size="icon"
             onClick={() => onReply(message)}
             className={cn(
-              "hidden md:flex transition-opacity rounded-full !size-8",
+              "hidden md:flex transition-opacity rounded-full size-8!",
               "md:opacity-0 md:group-hover:opacity-100",
             )}
           >
             <Reply
               size={16}
               className={cn(
-                "text-gray-500 dark:text-white !stroke-[1.9]",
+                "text-gray-500 dark:text-white stroke-[1.9]!",
                 isCurrentUser && "scale-x-[-1]",
               )}
             />
