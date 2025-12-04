@@ -7,11 +7,22 @@ import ChatHeader from "@/components/chat/chat-header";
 import EmptyState from "@/components/empty-state";
 import { useSocket } from "@/hooks/use-socket";
 import { markChatAsRead } from "@/lib/server/actions/chat";
-import type { ChatType, MessageType } from "@/types/chat.type";
+import type {
+  ChatWithDetails,
+  MessageWithSender,
+  OptimisticMessage,
+} from "@/types";
+
+// Extend Window interface to include custom properties
+declare global {
+  interface Window {
+    __lastMessageTimer?: NodeJS.Timeout | null;
+  }
+}
 
 interface SingleChatClientProps {
-  initialChat: ChatType;
-  initialMessages: MessageType[];
+  initialChat: ChatWithDetails;
+  initialMessages: MessageWithSender[];
   chatId: string;
   currentUserId: string;
 }
@@ -22,30 +33,34 @@ export default function SingleChatClient({
   chatId,
   currentUserId,
 }: SingleChatClientProps) {
-  const [messages, setMessages] = useState(initialMessages);
-  const [replyTo, setReplyTo] = useState<MessageType | null>(null);
+  const [messages, setMessages] =
+    useState<MessageWithSender[]>(initialMessages);
+  const [replyTo, setReplyTo] = useState<MessageWithSender | null>(null);
   const { socket } = useSocket();
 
-  // 乐观更新：立即添加消息到界面
   const addOptimisticMessage = useCallback(
     (payload: { content?: string; image?: string; tempId: string }) => {
-      const optimisticMessage: MessageType = {
+      const optimisticMessage: OptimisticMessage = {
         id: payload.tempId,
         chatId,
+        senderId: currentUserId,
         content: payload.content || "",
         image: payload.image || null,
         sender: {
           id: currentUserId,
+          clerkId: "",
           name: "You",
           email: "",
           avatar: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          bio: null,
+          isAdmin: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
+        replyToId: null,
         replyTo: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        // @ts-expect-error - 临时标记
+        createdAt: new Date(),
+        updatedAt: new Date(),
         _optimistic: true,
         _sending: true,
       };
@@ -56,65 +71,45 @@ export default function SingleChatClient({
     [chatId, currentUserId],
   );
 
-  // 替换乐观消息为真实消息（暂时未使用，保留以备将来使用）
-  // const replaceOptimisticMessage = useCallback(
-  //   (tempId: string, realMessage: MessageType) => {
-  //     setMessages((prev) => {
-  //       const updated = prev.map((m) => (m._id === tempId ? realMessage : m));
-  //       return updated;
-  //     });
-  //   },
-  //   [],
-  // );
-
-  // 添加真实消息（用于 Server Action 回退）
-  const addRealMessage = useCallback((realMessage: MessageType) => {
-    // 清除回退 timer（如果有的话）
-    if (typeof window !== "undefined" && (window as any).__lastMessageTimer) {
-      clearTimeout((window as any).__lastMessageTimer);
-      (window as any).__lastMessageTimer = null;
+  const addRealMessage = useCallback((realMessage: MessageWithSender) => {
+    if (typeof window !== "undefined" && window.__lastMessageTimer) {
+      clearTimeout(window.__lastMessageTimer);
+      window.__lastMessageTimer = null;
     }
 
     setMessages((prev) => {
-      // 检查是否已存在
       if (prev.some((m) => m.id === realMessage.id)) {
         return prev;
       }
 
-      // 移除所有乐观消息，添加真实消息
-      // @ts-expect-error
-      const withoutOptimistic = prev.filter((m) => !m._optimistic);
+      const withoutOptimistic = prev.filter(
+        (m) => !("_optimistic" in m && (m as OptimisticMessage)._optimistic),
+      );
       return [...withoutOptimistic, realMessage];
     });
   }, []);
 
-  // 标记消息发送失败
   const markMessageAsFailed = useCallback((tempId: string) => {
     setMessages((prev) =>
-      prev.map((m) =>
-        m.id === tempId ? { ...m, _sending: false, _failed: true } : m,
-      ),
+      prev.map((m) => {
+        if (m.id === tempId && "_sending" in m) {
+          return { ...m, _sending: false, _failed: true } as OptimisticMessage;
+        }
+        return m;
+      }),
     );
   }, []);
 
-  // Socket 加入聊天室
   useEffect(() => {
-    if (!socket || !chatId || !socket.connected) {
-      return;
-    }
+    if (!socket || !chatId || !socket.connected) return;
 
-    socket.emit("chat:join", chatId, (error?: string) => {
-      if (error) {
-        console.error("[Socket] Failed to join chat:", error);
-      }
-    });
+    socket.emit("chat:join", chatId);
 
     return () => {
       socket.emit("chat:leave", chatId);
     };
-  }, [socket, socket?.connected, chatId]);
+  }, [socket?.connected, chatId, socket]);
 
-  // 标记已读（只执行一次，当组件挂载时）
   useEffect(() => {
     if (!chatId) return;
 
@@ -123,51 +118,39 @@ export default function SingleChatClient({
     markChatAsRead(chatId)
       .then(() => {
         if (cancelled) return;
-
-        // 通知父组件清除未读数
         if (typeof window !== "undefined") {
           window.dispatchEvent(
-            new CustomEvent("chat:read", {
-              detail: { chatId },
-            }),
+            new CustomEvent("chat:read", { detail: { chatId } }),
           );
         }
       })
-      .catch((err) => {
-        if (cancelled) return;
-        console.error("[Chat] Failed to mark as read:", err);
-      });
+      .catch(() => {});
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatId]); // 只执行一次，chatId 通过 key prop 控制组件重新挂载
+  }, [chatId]);
 
-  // Socket 监听新消息
   useEffect(() => {
-    if (!socket || !socket.connected) {
-      return;
-    }
+    if (!socket || !socket.connected) return;
 
-    const handleNewMessage = (message: MessageType) => {
-      // 清除回退 timer（Socket 正常工作）
-      if (typeof window !== "undefined" && (window as any).__lastMessageTimer) {
-        clearTimeout((window as any).__lastMessageTimer);
-        (window as any).__lastMessageTimer = null;
+    const handleNewMessage = (message: MessageWithSender) => {
+      if (typeof window !== "undefined" && window.__lastMessageTimer) {
+        clearTimeout(window.__lastMessageTimer);
+        window.__lastMessageTimer = null;
       }
 
       if (message.chatId === chatId) {
         setMessages((prev) => {
-          // 检查是否已存在（避免重复）
           if (prev.some((m) => m.id === message.id)) {
             return prev;
           }
 
-          // 如果是自己发送的消息，可能已经作为乐观更新存在
-          // 移除所有乐观消息，添加真实消息
-          // @ts-expect-error
-          const withoutOptimistic = prev.filter((m) => !m._optimistic);
+          const withoutOptimistic = prev.filter(
+            (m) =>
+              !("_optimistic" in m && (m as OptimisticMessage)._optimistic),
+          );
           return [...withoutOptimistic, message];
         });
       }
@@ -178,7 +161,7 @@ export default function SingleChatClient({
     return () => {
       socket.off("message:new", handleNewMessage);
     };
-  }, [socket, socket?.connected, chatId]);
+  }, [socket?.connected, chatId, socket]);
 
   return (
     <div
@@ -195,7 +178,6 @@ export default function SingleChatClient({
           />
         ) : (
           <ChatBody
-            chatId={chatId}
             messages={messages}
             onReply={setReplyTo}
             currentUserId={currentUserId}

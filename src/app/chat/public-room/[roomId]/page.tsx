@@ -1,8 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { notFound, redirect } from "next/navigation";
-import * as messageService from "@/lib/server/services/message.service";
-import * as publicRoomService from "@/lib/server/services/room.service";
-import * as userService from "@/lib/server/services/user.service";
+import * as messageRepository from "@/lib/server/repositories/message.repository";
+import * as roomRepository from "@/lib/server/repositories/room.repository";
+import * as userRepository from "@/lib/server/repositories/user.repository";
 import PublicRoomClient from "./room-client";
 
 /**
@@ -20,24 +20,22 @@ export default async function PublicRoomPage({
     redirect("/sign-in");
   }
 
-  const user = await userService.findUserByClerkId(userId);
+  const user = await userRepository.findUserByClerkId(userId);
 
   if (!user) {
     redirect("/sign-in");
   }
 
-  const room = await publicRoomService.findPublicRoomById(roomId);
+  const room = await roomRepository.findPublicRoomById(roomId);
 
   if (!room) {
     notFound();
   }
 
-  const isMember = await publicRoomService.isUserInRoom(roomId, user.id);
+  const isMember = await roomRepository.isUserInRoom(roomId, user.id);
 
-  // 只有成员才能查看消息
-  const messagesResult = isMember
-    ? await messageService.findMessagesByRoomId(roomId)
-    : { messages: [] };
+  // 公共聊天室：所有人都可以查看消息（公开可见）
+  const messagesResult = await messageRepository.findMessagesByRoomId(roomId);
 
   return (
     <PublicRoomClient

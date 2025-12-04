@@ -5,14 +5,15 @@ import { memo, useCallback, useRef } from "react";
 import AvatarWithBadge from "@/components/shared/avatar-with-badge";
 import { useAuth } from "@/hooks/use-clerk-auth";
 import { cn } from "@/lib/utils";
+import { isFailedMessage, isSendingMessage } from "@/lib/utils/type-guards";
 import { formatChatTime } from "@/lib/utils/user-utils";
-import type { MessageType } from "@/types/chat.type";
+import type { MessageWithSender } from "@/types";
 import { Button } from "../ui/button";
 
 interface Props {
-  message: MessageType;
-  onReply: (message: MessageType) => void;
-  currentUserId?: string; // 添加可选的 currentUserId prop
+  message: MessageWithSender;
+  onReply: (message: MessageWithSender) => void;
+  currentUserId?: string;
 }
 
 const ChatBodyMessage = memo(({ message, onReply, currentUserId }: Props) => {
@@ -20,15 +21,12 @@ const ChatBodyMessage = memo(({ message, onReply, currentUserId }: Props) => {
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
 
-  // 优先使用传入的 currentUserId，否则使用 useAuth
-  const userId = currentUserId || user?.id || null;
-  const isCurrentUser = message.sender?.id === userId;
+  const userId = currentUserId ?? user?.id ?? null;
+  const isCurrentUser = !!userId && message.sender?.id === userId;
   const senderName = isCurrentUser ? "You" : message.sender?.name;
 
-  // @ts-expect-error - 检查临时标记
-  const isSending = message._sending === true;
-  // @ts-expect-error
-  const isFailed = message._failed === true;
+  const isSending = isSendingMessage(message);
+  const isFailed = isFailedMessage(message);
 
   const handleTouchStart = useCallback(() => {
     isLongPressRef.current = false;

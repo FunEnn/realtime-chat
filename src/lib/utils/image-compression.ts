@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Compress an image file to reduce its size
  * @param file - The image file to compress
  * @param maxSizeMB - Maximum file size in MB (default: 1MB)

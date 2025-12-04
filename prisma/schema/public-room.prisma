@@ -17,10 +17,12 @@ model PublicRoom {
 }
 
 model RoomMember {
-  id       String   @id @default(uuid())
-  roomId   String
-  userId   String
-  joinedAt DateTime @default(now())
+  id           String    @id @default(uuid())
+  roomId       String
+  userId       String
+  unreadCount  Int       @default(0)
+  lastReadAt   DateTime?
+  joinedAt     DateTime  @default(now())
 
   room PublicRoom @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   user User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)

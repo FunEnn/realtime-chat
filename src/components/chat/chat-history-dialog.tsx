@@ -14,12 +14,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
-import type { ChatType, MessageType } from "@/types/chat.type";
+import {
+  getCreatorId,
+  getGroupName,
+  getLastMessage,
+  getParticipants,
+} from "@/lib/utils/type-guards";
+import type { ChatWithDetails, MessageWithDetails } from "@/types";
 
 interface ChatHistoryDialogProps {
   trigger?: React.ReactNode;
   chatId?: string;
-  chats?: ChatType[]; // 从 Server Component 传入
+  chats?: ChatWithDetails[];
 }
 
 export default function ChatHistoryDialog({
@@ -30,7 +36,7 @@ export default function ChatHistoryDialog({
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
-  const [chatMessages, setChatMessages] = useState<MessageType[]>([]);
+  const [chatMessages, setChatMessages] = useState<MessageWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
@@ -38,14 +44,18 @@ export default function ChatHistoryDialog({
 
   // 安全的日期格式化函数
   const safeFormatDate = useCallback(
-    (dateString: string | undefined, formatStr: string): string | null => {
-      if (!dateString) return null;
+    (
+      dateInput: string | Date | undefined,
+      formatStr: string,
+    ): string | null => {
+      if (!dateInput) return null;
       try {
-        const date = new Date(dateString);
+        const date =
+          dateInput instanceof Date ? dateInput : new Date(dateInput);
         if (Number.isNaN(date.getTime())) return null;
         return format(date, formatStr);
       } catch (error) {
-        console.error("Invalid date:", dateString, error);
+        console.error("Invalid date:", dateInput, error);
         return null;
       }
     },
@@ -70,8 +80,8 @@ export default function ChatHistoryDialog({
 
         if (cancelled) return;
 
-        if (result.success && result.data?.messages) {
-          setChatMessages(result.data.messages);
+        if (result.success && result.data && (result.data as any).messages) {
+          setChatMessages((result.data as any).messages);
         } else {
           console.error("Failed to fetch messages:", result.error);
           setChatMessages([]);
@@ -119,7 +129,7 @@ export default function ChatHistoryDialog({
     return chats.map((chat) => ({
       type: "chat" as const,
       chat,
-      lastMessage: chat.lastMessage,
+      lastMessage: getLastMessage(chat),
     }));
   }, [chats, activeChatId, chatMessages]);
 
@@ -147,8 +157,8 @@ export default function ChatHistoryDialog({
 
       const matchesSearch =
         !searchQuery ||
-        chat.groupName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        chat.participants.some((p) =>
+        getGroupName(chat)?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        getParticipants(chat).some((p) =>
           p.name?.toLowerCase().includes(searchQuery.toLowerCase()),
         ) ||
         lastMessage?.content?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -188,11 +198,13 @@ export default function ChatHistoryDialog({
     return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
   }, [filteredHistory, safeFormatDate]);
 
-  const getChatName = (chat: ChatType) => {
+  const getChatName = (chat: ChatWithDetails) => {
     if (chat.isGroup) {
-      return chat.groupName || "Unnamed Group";
+      return getGroupName(chat) || "Unnamed Group";
     }
-    const otherUser = chat.participants.find((p) => p.id !== chat.createdBy);
+    const creatorId = getCreatorId(chat);
+    const participants = getParticipants(chat);
+    const otherUser = participants.find((p) => p.id !== creatorId);
     return otherUser?.name || "Unknown";
   };
 
@@ -224,8 +236,9 @@ export default function ChatHistoryDialog({
             )}
             <DialogTitle className="text-sm sm:text-base md:text-lg">
               {selectedChatId && !chatId
-                ? chats.find((c) => c.id === selectedChatId)?.groupName ||
-                  "Chat History"
+                ? getGroupName(
+                    chats.find((c) => c.id === selectedChatId) || ({} as any),
+                  ) || "Chat History"
                 : "Chat History"}
             </DialogTitle>
           </div>
@@ -333,15 +346,16 @@ export default function ChatHistoryDialog({
                                 📷 Photo
                               </p>
                             )}
-                            {item.message.replyTo && (
-                              <div className="mt-1 sm:mt-1.5 md:mt-2 pl-1 sm:pl-1.5 md:pl-2 border-l-2 border-muted">
-                                <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">
-                                  Reply to:{" "}
-                                  {item.message.replyTo.sender?.name ||
-                                    "Unknown"}
-                                </p>
-                              </div>
-                            )}
+                            {item.message.replyTo &&
+                              (item.message.replyTo as any).sender && (
+                                <div className="mt-1 sm:mt-1.5 md:mt-2 pl-1 sm:pl-1.5 md:pl-2 border-l-2 border-muted">
+                                  <p className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">
+                                    Reply to:{" "}
+                                    {(item.message.replyTo as any).sender
+                                      ?.name || "Unknown"}
+                                  </p>
+                                </div>
+                              )}
                           </div>
                         );
                       }

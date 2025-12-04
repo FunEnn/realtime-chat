@@ -1,7 +1,6 @@
 /**
  * Public Room List Component
- * 从 API 获取公共聊天室列表
- * TODO: 未来可以改为从 Server Component 传入 rooms 以进一步优化
+ * 使用 Server Action 获取公共聊天室列表
  */
 "use client";
 
@@ -9,36 +8,30 @@ import { Users } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { useAuth } from "@/hooks/use-clerk-auth";
 import { useSocket } from "@/hooks/use-socket";
-import { API } from "@/lib/api/axios-client";
+import { getAllPublicRooms } from "@/lib/server/actions/public-room";
 import { cn } from "@/lib/utils";
-import type { PublicRoomType } from "@/types/public-room.type";
+import type { PublicRoomDisplay } from "@/types";
 
 export default function PublicRoomList() {
   const router = useRouter();
   const pathname = usePathname();
   const { socket } = useSocket();
-  const [rooms, setRooms] = useState<PublicRoomType[]>([]);
+  const { user: currentUser } = useAuth();
+  const [rooms, setRooms] = useState<PublicRoomDisplay[]>([]);
   const [isRoomsLoading, setIsRoomsLoading] = useState(false);
+  const currentRoomId = pathname.split("/").pop();
 
   const fetchPublicRooms = useCallback(async () => {
     setIsRoomsLoading(true);
     try {
-      const response = await API.get("/public-rooms/all");
-      console.log("[PublicRoomList] API Response:", response.data);
+      const result = await getAllPublicRooms();
 
-      const data =
-        response.data?.data || response.data?.rooms || response.data || [];
-
-      console.log("[PublicRoomList] Extracted data:", data);
-
-      // 过滤掉无效的房间数据
-      const validRooms = Array.isArray(data)
-        ? data.filter((room) => room?.id)
-        : [];
-
-      console.log("[PublicRoomList] Valid rooms:", validRooms);
-      setRooms(validRooms);
+      if (result.success && result.rooms) {
+        const validRooms = result.rooms.filter((room) => room?.id);
+        setRooms(validRooms as PublicRoomDisplay[]);
+      }
     } catch (error) {
       console.error("Failed to fetch public rooms:", error);
     } finally {
@@ -51,30 +44,112 @@ export default function PublicRoomList() {
   }, [fetchPublicRooms]);
 
   useEffect(() => {
+    if (!currentRoomId || !pathname.includes("/public-room/")) return;
+
+    setRooms((prev) =>
+      prev.map((room) =>
+        room.id === currentRoomId
+          ? { ...room, unreadCount: 0, hasUnread: false }
+          : room,
+      ),
+    );
+  }, [currentRoomId, pathname]);
+
+  useEffect(() => {
     if (!socket) return;
 
-    const handleRoomCreated = (_room: PublicRoomType) => {
+    const handleRoomCreated = (_room: PublicRoomDisplay) => {
       fetchPublicRooms();
     };
 
-    const handleRoomUpdated = (_room: PublicRoomType) => {
-      fetchPublicRooms();
+    const handleRoomUpdated = (updatedRoom: any) => {
+      setRooms((prev) =>
+        prev.map((room) => {
+          if (room.id === updatedRoom.id) {
+            // 检查当前用户是否在成员列表中
+            let isMember = room.isMember;
+            if (currentUser?.id && Array.isArray(updatedRoom.members)) {
+              isMember = updatedRoom.members.some((member: any) => {
+                const memberId = member.userId || member.user?.id;
+                return memberId === currentUser.id;
+              });
+            }
+
+            // 获取成员数量
+            const memberCount =
+              updatedRoom._count?.members ||
+              updatedRoom.memberCount ||
+              (Array.isArray(updatedRoom.members)
+                ? updatedRoom.members.length
+                : room._count?.members);
+
+            return {
+              ...room,
+              name: updatedRoom.name || room.name,
+              avatar: updatedRoom.avatar || room.avatar,
+              description: updatedRoom.description ?? room.description,
+              members: updatedRoom.members || room.members,
+              memberCount,
+              _count: {
+                ...room._count,
+                members: memberCount,
+              },
+              isMember,
+              unreadCount: updatedRoom.unreadCount ?? room.unreadCount,
+              hasUnread: updatedRoom.hasUnread ?? room.hasUnread,
+            };
+          }
+          return room;
+        }),
+      );
     };
 
-    const handleRoomDeleted = () => {
-      fetchPublicRooms();
+    const handleRoomDeleted = (data: { roomId: string }) => {
+      setRooms((prev) => prev.filter((room) => room.id !== data.roomId));
+
+      // 如果用户正在被删除的房间中，跳转到聊天列表
+      if (currentRoomId === data.roomId) {
+        router.push("/chat");
+      }
+    };
+
+    const handleChatUpdate = (data: { chatId: string; lastMessage: any }) => {
+      const roomId = data.chatId;
+      const senderId = data.lastMessage?.sender?.id;
+
+      setRooms((prev) =>
+        prev.map((room) => {
+          if (room.id === roomId && room.isMember) {
+            const isCurrentRoom = currentRoomId === roomId;
+            const isSelf = senderId === currentUser?.id;
+
+            if (isCurrentRoom || isSelf) {
+              return room;
+            }
+
+            return {
+              ...room,
+              unreadCount: (room.unreadCount || 0) + 1,
+              hasUnread: true,
+            };
+          }
+          return room;
+        }),
+      );
     };
 
     socket.on("public-room:created", handleRoomCreated);
     socket.on("public-room:updated", handleRoomUpdated);
     socket.on("public-room:deleted", handleRoomDeleted);
+    socket.on("chat:update", handleChatUpdate);
 
     return () => {
       socket.off("public-room:created", handleRoomCreated);
       socket.off("public-room:updated", handleRoomUpdated);
       socket.off("public-room:deleted", handleRoomDeleted);
+      socket.off("chat:update", handleChatUpdate);
     };
-  }, [socket, fetchPublicRooms]);
+  }, [socket, fetchPublicRooms, currentRoomId, currentUser?.id, router.push]);
 
   if (isRoomsLoading) {
     return (
@@ -104,15 +179,26 @@ export default function PublicRoomList() {
             pathname.includes(room.id) && "!bg-sidebar-accent",
           )}
         >
-          <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            {room.avatar ? (
-              <img
-                src={room.avatar}
-                alt={room.name}
-                className="w-full h-full rounded-full object-cover"
-              />
+          <div className="relative">
+            <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              {room.avatar ? (
+                <img
+                  src={room.avatar}
+                  alt={room.name}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                <Users className="w-5 h-5 text-primary" />
+              )}
+            </div>
+            {room.isMember ? (
+              room.unreadCount && room.unreadCount > 0 ? (
+                <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-semibold text-white bg-red-500 rounded-full border-2 border-background">
+                  {room.unreadCount > 99 ? "99+" : room.unreadCount}
+                </span>
+              ) : null
             ) : (
-              <Users className="w-5 h-5 text-primary" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-muted-foreground/40 rounded-full" />
             )}
           </div>
 
@@ -132,8 +218,8 @@ export default function PublicRoomList() {
                 {room.description || "Public chat room"}
               </p>
               <span className="text-[10px] md:text-xs shrink-0 text-muted-foreground">
-                {room.memberCount}{" "}
-                {room.memberCount === 1 ? "member" : "members"}
+                {room._count.members}{" "}
+                {room._count.members === 1 ? "member" : "members"}
               </span>
             </div>
           </div>

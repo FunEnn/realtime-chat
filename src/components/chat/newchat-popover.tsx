@@ -9,7 +9,7 @@ import { ImageCropDialog } from "@/components/shared/image-crop-dialog";
 import { useAuth } from "@/hooks/use-clerk-auth";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import { createChat as createChatAction } from "@/lib/server/actions/chat";
-import type { UserType } from "@/types/auth.type";
+import type { User } from "@/types";
 import CreatePublicRoomDialog from "../public-room/create-public-room-dialog";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
@@ -22,7 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Spinner } from "../ui/spinner";
 
 interface NewChatPopoverProps {
-  users?: UserType[];
+  users?: User[];
 }
 
 export const NewChatPopover = memo(
@@ -107,8 +107,8 @@ export const NewChatPopover = memo(
         const result = await createChatAction({
           isGroup: true,
           participants: selectedUsers,
-          groupName: groupName,
-          groupAvatar: avatarUrl || undefined,
+          name: groupName,
+          avatar: avatarUrl || undefined,
         });
 
         if (result.success && result.data) {
@@ -322,11 +322,16 @@ export const NewChatPopover = memo(
 
 NewChatPopover.displayName = "NewChatPopover";
 
-const UserAvatar = memo(({ user }: { user: UserType }) => (
+const UserAvatar = memo(({ user }: { user: User }) => (
   <>
-    <AvatarWithBadge name={user.name} src={user.avatar ?? undefined} />
+    <AvatarWithBadge
+      name={user.name || user.email}
+      src={user.avatar ?? undefined}
+    />
     <div className="flex-1 min-w-0">
-      <h5 className="text-[13.5px] font-medium truncate">{user.name}</h5>
+      <h5 className="text-[13.5px] font-medium truncate">
+        {user.name || user.email}
+      </h5>
       <p className="text-xs text-muted-foreground truncate">
         {user.bio || "Hey there! I'm using chat"}
       </p>
@@ -361,7 +366,7 @@ const ChatUserItem = memo(
     disabled,
     onClick,
   }: {
-    user: UserType;
+    user: User;
     disabled: boolean;
     isLoading: boolean;
     onClick: (id: string) => void;
@@ -386,7 +391,7 @@ const GroupUserItem = memo(
     isSelected,
     onToggle,
   }: {
-    user: UserType;
+    user: User;
     isSelected: boolean;
     onToggle: (id: string) => void;
   }) => (

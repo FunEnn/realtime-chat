@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useAuth as useClerkAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
@@ -6,8 +6,8 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { useSocket } from "@/hooks/use-socket";
-import { API, setAuthToken } from "@/lib/api/axios-client";
-import type { UserType } from "@/types/auth.type";
+import { API, setAuthToken } from "@/lib/api-client";
+import type { User } from "@/types";
 
 interface ClerkUserData {
   id: string;
@@ -20,47 +20,58 @@ interface ClerkUserData {
 }
 
 interface AuthState {
-  user: UserType | null;
+  user: User | null;
   isLoading: boolean;
+  lastSyncedClerkId: string | null;
   syncUserWithBackend: (clerkUser: ClerkUserData | null) => Promise<void>;
   logout: () => Promise<void>;
-  setUser: (user: UserType | null) => void;
+  setUser: (user: User | null) => void;
 }
 
-export const useAuthStore = create<AuthState>()((set) => ({
+export const useAuthStore = create<AuthState>()((set, get) => ({
   user: null,
   isLoading: false,
+  lastSyncedClerkId: null,
 
   syncUserWithBackend: async (clerkUser) => {
     if (!clerkUser) {
-      set({ user: null });
+      set({ user: null, lastSyncedClerkId: null });
+      return;
+    }
+
+    const { lastSyncedClerkId, user: currentUser } = get();
+
+    // 如果已经同步过相同的用户，跳过
+    if (lastSyncedClerkId === clerkUser.id && currentUser) {
       return;
     }
 
     set({ isLoading: true });
+
     try {
-      const response = await API.post("/auth/clerk-sync", {
+      const { data } = await API.post("/auth/clerk-sync", {
         clerkId: clerkUser.id,
         email: clerkUser.primaryEmailAddress?.emailAddress,
         name: clerkUser.fullName || clerkUser.firstName || "User",
         avatar: clerkUser.imageUrl,
       });
 
-      const user = response.data?.data || response.data?.user || response.data;
-      set({ user });
-    } catch (error) {
-      console.error("Sync with backend failed:", error);
+      const user = data?.user || data?.data || data;
+      set({ user, lastSyncedClerkId: clerkUser.id });
+    } catch {
       set({
         user: {
           id: clerkUser.id,
+          clerkId: clerkUser.id,
           name: clerkUser.fullName || clerkUser.firstName || "User",
           email: clerkUser.primaryEmailAddress?.emailAddress || "",
           avatar: clerkUser.imageUrl || null,
-          createdAt:
-            clerkUser.createdAt?.toString() || new Date().toISOString(),
-          updatedAt:
-            clerkUser.updatedAt?.toString() || new Date().toISOString(),
+          bio: null,
+          isAdmin: false,
+          createdAt: new Date(clerkUser.createdAt || Date.now()),
+          updatedAt: new Date(clerkUser.updatedAt || Date.now()),
         },
+        lastSyncedClerkId: clerkUser.id,
       });
     } finally {
       useSocket.getState().connectSocket();
@@ -69,12 +80,8 @@ export const useAuthStore = create<AuthState>()((set) => ({
   },
 
   logout: async () => {
-    try {
-      await API.post("/auth/logout");
-    } catch (error) {
-      console.error("Backend logout error:", error);
-    }
-    set({ user: null });
+    // 不需要调用后端，只需清理客户端状态
+    set({ user: null, lastSyncedClerkId: null });
     useSocket.getState().disconnectSocket();
   },
 
@@ -107,8 +114,8 @@ export function useAuth() {
             const token = await getToken();
             setAuthToken(token);
             await syncUserWithBackend(clerkUser);
-          } catch (error) {
-            console.error("Failed to get token:", error);
+          } catch {
+            // Token 获取失败，稍后重试
           }
         } else {
           setAuthToken(null);
@@ -119,9 +126,11 @@ export function useAuth() {
     };
 
     syncAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     clerkLoaded,
     isSignedIn,
+    clerkUser?.id,
     clerkUser,
     getToken,
     setUser,
@@ -135,8 +144,8 @@ export function useAuth() {
       try {
         const token = await getToken();
         setAuthToken(token);
-      } catch (error) {
-        console.error("Failed to refresh token:", error);
+      } catch {
+        // Token 刷新失败
       }
     };
 
@@ -151,8 +160,7 @@ export function useAuth() {
       await signOut();
       toast.success("Logout successfully");
       router.push("/sign-in");
-    } catch (error) {
-      console.error("Logout error:", error);
+    } catch {
       toast.error("Logout failed");
     }
   };

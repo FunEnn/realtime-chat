@@ -2,7 +2,7 @@
 
 import { Search } from "lucide-react";
 import { useSocket } from "@/hooks/use-socket";
-import type { UserType } from "@/types/auth.type";
+import type { User } from "@/types";
 import {
   InputGroup,
   InputGroupAddon,
@@ -12,7 +12,7 @@ import { NewChatPopover } from "./newchat-popover";
 
 interface ChatListHeaderProps {
   onSearch: (val: string) => void;
-  users?: UserType[];
+  users?: User[];
 }
 
 const ChatListHeader = ({ onSearch, users }: ChatListHeaderProps) => {

@@ -1,11 +1,11 @@
 "use client";
 
 import { X } from "lucide-react";
-import type { MessageType } from "@/types/chat.type";
+import type { MessageWithSender } from "@/types";
 import { Button } from "../ui/button";
 
 interface Props {
-  replyTo: MessageType | null;
+  replyTo: MessageWithSender | null;
   currentUserId: string | null;
   onCancel: () => void;
 }

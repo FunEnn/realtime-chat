@@ -1,5 +1,6 @@
-import { useCallback, useState } from "react";
+﻿import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { API } from "@/lib/api-client";
 
 interface UseImageUploadReturn {
   avatar: string | null;
@@ -43,9 +44,8 @@ export const useImageUpload = (
         toast.dismiss("image-process");
         setTempImageSrc(compressed);
         setCropDialogOpen(true);
-      } catch (error) {
+      } catch {
         toast.dismiss("image-process");
-        console.error("Image processing failed:", error);
         toast.error("Failed to process image. Please try a different image.");
       }
 
@@ -70,26 +70,14 @@ export const useImageUpload = (
       toast.loading("Uploading to Cloudinary...", { id: "cloudinary-upload" });
 
       try {
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ file: base64Image }),
-        });
+        const { data } = await API.post("/upload", { file: base64Image });
 
-        if (!response.ok) {
-          throw new Error("Failed to upload image");
-        }
-
-        const data = await response.json();
         toast.success("Image uploaded successfully", {
           id: "cloudinary-upload",
         });
 
         return data.url;
       } catch (error) {
-        console.error("Upload to Cloudinary failed:", error);
         toast.error("Failed to upload image", { id: "cloudinary-upload" });
         throw error;
       } finally {

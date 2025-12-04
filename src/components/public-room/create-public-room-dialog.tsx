@@ -97,14 +97,18 @@ export default function CreatePublicRoomDialog({
         avatar: avatarUrl || undefined,
       });
 
-      if (result.success && result.room) {
+      if (result.success && result.data) {
         resetForm();
         setOpen(false);
         toast.success("Public room created successfully");
-        router.push(`/chat/public-room/${result.room.id}`);
+        router.push(`/chat/public-room/${(result.data as any).id}`);
         router.refresh();
       } else {
-        toast.error(result.error || "Failed to create public room");
+        const errorMsg =
+          typeof result.error === "string"
+            ? result.error
+            : "Failed to create public room";
+        toast.error(errorMsg);
       }
     } finally {
       setIsCreating(false);

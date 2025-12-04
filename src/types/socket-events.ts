@@ -1,9 +1,9 @@
-/**
+﻿/**
  * Socket.IO 事件类型定义
  * 确保客户端和服务端事件类型安全
  */
 
-import type { Chat, Message, PublicRoom, RoomMessage } from "./entities";
+import type { Chat, Message, PublicRoom, RoomMessage } from "@prisma/client";
 
 /**
  * 服务端向客户端发送的事件

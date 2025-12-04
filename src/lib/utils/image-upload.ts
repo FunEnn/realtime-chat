@@ -1,4 +1,5 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
+import { API } from "@/lib/api-client";
 
 /**
  * 验证图片文件
@@ -59,20 +60,7 @@ export async function uploadImageToCloudinary(
 
   try {
     const dataUrl = await fileToDataUrl(file);
-
-    const response = await fetch("/api/upload", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ file: dataUrl }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to upload image");
-    }
-
-    const data = await response.json();
+    const { data } = await API.post("/upload", { file: dataUrl });
 
     if (showToast) {
       toast.success("Image uploaded successfully", { id: "image-upload" });

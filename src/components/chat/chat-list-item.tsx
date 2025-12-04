@@ -6,24 +6,26 @@ import AvatarWithBadge from "@/components/shared/avatar-with-badge";
 import { useMounted } from "@/hooks/use-mounted";
 import { useSocket } from "@/hooks/use-socket";
 import { cn } from "@/lib/utils";
+import { getCreatorId, getLastMessage } from "@/lib/utils/type-guards";
 import { formatChatTime, getOtherUserAndGroup } from "@/lib/utils/user-utils";
-import type { ChatType } from "@/types/chat.type";
+import type { ChatWithDetails } from "@/types";
 
 interface PropsType {
-  chat: ChatType;
+  chat: ChatWithDetails;
   currentUserId: string | null;
   onClick?: () => void;
 }
 
 const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
   const pathname = usePathname();
-  const { lastMessage, createdAt } = chat;
+  const lastMessage = getLastMessage(chat);
+  const { createdAt } = chat;
   const isMounted = useMounted();
-  const { onlineUsers } = useSocket(); // ✅ 订阅在线用户状态
+  const { onlineUsers } = useSocket();
 
   const { name, avatar, isOnline, isGroup } = useMemo(
-    () => getOtherUserAndGroup(chat, currentUserId, isMounted),
-    [chat, currentUserId, isMounted], // ✅ 添加 onlineUsers 依赖
+    () => getOtherUserAndGroup(chat, currentUserId, isMounted, onlineUsers),
+    [chat, currentUserId, isMounted, onlineUsers],
   );
 
   // 格式化时间（仅在客户端）
@@ -33,8 +35,9 @@ const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
 
   const getLastMessageText = () => {
     if (!lastMessage) {
+      const creatorId = getCreatorId(chat);
       return isGroup
-        ? chat.createdBy === currentUserId
+        ? creatorId === currentUserId
           ? "Group created"
           : "You were added"
         : "Send a message";

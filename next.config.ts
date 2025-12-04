@@ -6,7 +6,12 @@ const nextConfig: NextConfig = {
 
   // 图片优化配置
   images: {
-    domains: ["api.dicebear.com"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "api.dicebear.com",
+      },
+    ],
     unoptimized: process.env.NODE_ENV === "development",
   },
 

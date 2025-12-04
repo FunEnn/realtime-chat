@@ -1,56 +1,68 @@
-"use server";
+﻿"use server";
 
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { assert } from "@/lib/errors/app-error";
+import { assert, createError } from "@/lib/errors/app-error";
 import {
   createSuccessResponse,
   handleServerActionError,
 } from "@/lib/errors/error-handler";
 import {
+  emitChatDeletedToParticipants,
+  emitChatInfoUpdatedToParticipants,
   emitLastMessageToParticipants,
   emitNewChatToParticipants,
   emitNewMessageToChatRoom,
 } from "@/lib/socket";
-import type { MessageType } from "@/types/chat.type";
 import type { ApiResponse } from "@/types/common";
-import * as chatService from "../services/chat.service";
-import * as messageService from "../services/message.service";
-import * as userService from "../services/user.service";
+import type { CreateChatInput, CreateMessageInput } from "@/types/prisma.types";
+import * as chatRepository from "../repositories/chat.repository";
+import * as messageRepository from "../repositories/message.repository";
+import * as userRepository from "../repositories/user.repository";
 
+/**
+ * 获取当前用户的所有聊天列表
+ */
 export async function getAllChats(): Promise<ApiResponse> {
   try {
     const { userId: clerkId } = await auth();
-    const authenticatedClerkId = assert.authenticated(clerkId);
-    const userOrNull =
-      await userService.findUserByClerkId(authenticatedClerkId);
-    const user = assert.exists(userOrNull, "User");
+    if (!clerkId) throw new Error("Unauthorized");
 
-    const chats = await chatService.findChatsByUserId(user.id);
+    const user = await userRepository.findUserByClerkId(clerkId);
+    if (!user) throw new Error("User not found");
+
+    const chats = await chatRepository.findChatsByUserId(user.id);
+
     return createSuccessResponse(chats, "Chats fetched successfully");
   } catch (error) {
     return handleServerActionError(error);
   }
 }
 
+/**
+ * 根据 ID 获取聊天详情（包含消息）
+ */
 export async function getChatById(chatId: string): Promise<ApiResponse> {
   try {
     const { userId: clerkId } = await auth();
-    const authenticatedClerkId = assert.authenticated(clerkId);
-    const userOrNull =
-      await userService.findUserByClerkId(authenticatedClerkId);
-    const user = assert.exists(userOrNull, "User");
+    if (!clerkId) throw new Error("Unauthorized");
 
-    const chat = await chatService.findChatById(chatId);
-    assert.exists(chat, "Chat");
+    const user = await userRepository.findUserByClerkId(clerkId);
+    if (!user) throw new Error("User not found");
 
-    const isMember = await chatService.isUserInChat(chatId, user.id);
+    // 获取聊天
+    const chat = await chatRepository.findChatById(chatId);
+    if (!chat) throw new Error("Chat not found");
+
+    // 验证权限
+    const isMember = await chatRepository.isUserInChat(chatId, user.id);
     assert.authorized(isMember, "You are not a member of this chat");
 
-    const { messages } = await messageService.findMessagesByChatId(chatId);
+    // 获取消息
+    const result = await messageRepository.findMessagesByChatId(chatId);
 
     return createSuccessResponse(
-      { chat, messages },
+      { chat, messages: result.messages },
       "Chat fetched successfully",
     );
   } catch (error) {
@@ -58,36 +70,36 @@ export async function getChatById(chatId: string): Promise<ApiResponse> {
   }
 }
 
-export async function getChatMessages(
-  chatId: string,
-): Promise<ApiResponse<{ messages: MessageType[] }>> {
+/**
+ * 获取聊天的消息列表
+ */
+export async function getChatMessages(chatId: string): Promise<ApiResponse> {
   try {
     const { userId: clerkId } = await auth();
-    const authenticatedClerkId = assert.authenticated(clerkId);
-    const userOrNull =
-      await userService.findUserByClerkId(authenticatedClerkId);
-    const user = assert.exists(userOrNull, "User");
+    if (!clerkId) throw new Error("Unauthorized");
 
-    const isMember = await chatService.isUserInChat(chatId, user.id);
+    const user = await userRepository.findUserByClerkId(clerkId);
+    if (!user) throw new Error("User not found");
+
+    // 验证权限
+    const isMember = await chatRepository.isUserInChat(chatId, user.id);
     assert.authorized(isMember, "You are not a member of this chat");
 
-    const { messages } = await messageService.findMessagesByChatId(chatId);
-
-    // 转换为客户端格式
-    const { mapMessageToMessageType } = await import("../mappers/chat.mapper");
-    const messageTypes = messages.map(mapMessageToMessageType);
+    // 获取消息
+    const result = await messageRepository.findMessagesByChatId(chatId);
 
     return createSuccessResponse(
-      { messages: messageTypes },
+      { messages: result.messages },
       "Messages fetched successfully",
     );
   } catch (error) {
-    return handleServerActionError(error) as ApiResponse<{
-      messages: MessageType[];
-    }>;
+    return handleServerActionError(error);
   }
 }
 
+/**
+ * 更新聊天信息（仅创建者可操作）
+ */
 export async function updateChatInfo(
   chatId: string,
   data: {
@@ -98,51 +110,70 @@ export async function updateChatInfo(
 ): Promise<ApiResponse> {
   try {
     const { userId: clerkId } = await auth();
-    const authenticatedClerkId = assert.authenticated(clerkId);
-    const userOrNull =
-      await userService.findUserByClerkId(authenticatedClerkId);
-    const user = assert.exists(userOrNull, "User");
+    if (!clerkId) throw new Error("Unauthorized");
 
-    const chatOrNull = await chatService.findChatById(chatId);
-    const chat = assert.exists(chatOrNull, "Chat");
+    const user = await userRepository.findUserByClerkId(clerkId);
+    if (!user) throw new Error("User not found");
+
+    // 获取聊天并验证权限
+    const chat = await chatRepository.findChatById(chatId);
+    if (!chat) throw new Error("Chat not found");
 
     assert.authorized(
       chat.createdById === user.id,
       "Only creator can update this chat",
     );
 
-    const updatedChat = await chatService.updateChat(chatId, user.id, {
-      name: data.name,
-      avatar: data.avatar,
-      description: data.description,
-    });
+    // 更新聊天
+    const updatedChat = await chatRepository.updateChat(chatId, data);
 
-    revalidatePath("/chat");
+    // 获取所有参与者ID，用于通知
+    const participantIds = await chatRepository.getChatParticipantIds(chatId);
+
+    // 使用 mapper 转换为完整的 ChatWithDetails 格式
+    const { mapChatToChatType } = await import("../mappers/chat.mapper");
+    const mappedChat = mapChatToChatType(updatedChat as any);
+
+    // 通知所有参与者聊天信息已更新
+    emitChatInfoUpdatedToParticipants(participantIds, mappedChat);
+
     revalidatePath(`/chat/${chatId}`);
 
-    return createSuccessResponse(updatedChat, "Chat updated successfully");
+    return createSuccessResponse(mappedChat, "Chat updated successfully");
   } catch (error) {
     return handleServerActionError(error);
   }
 }
 
+/**
+ * 删除聊天（仅创建者可操作）
+ */
 export async function deleteChat(chatId: string): Promise<ApiResponse> {
   try {
     const { userId: clerkId } = await auth();
-    const authenticatedClerkId = assert.authenticated(clerkId);
-    const userOrNull =
-      await userService.findUserByClerkId(authenticatedClerkId);
-    const user = assert.exists(userOrNull, "User");
+    if (!clerkId) throw new Error("Unauthorized");
 
-    const chatOrNull = await chatService.findChatById(chatId);
-    const chat = assert.exists(chatOrNull, "Chat");
+    const user = await userRepository.findUserByClerkId(clerkId);
+    if (!user) throw new Error("User not found");
+
+    // 获取聊天并验证权限
+    const chat = await chatRepository.findChatById(chatId);
+    if (!chat) throw new Error("Chat not found");
 
     assert.authorized(
       chat.createdById === user.id,
       "Only creator can delete this chat",
     );
 
-    await chatService.deleteChat(chatId, user.id);
+    // 获取所有参与者ID，用于通知
+    const participantIds = await chatRepository.getChatParticipantIds(chatId);
+
+    // 删除聊天
+    await chatRepository.deleteChat(chatId);
+
+    // 通知所有参与者聊天已删除
+    emitChatDeletedToParticipants(participantIds, chatId);
+
     revalidatePath("/chat");
 
     return createSuccessResponse(null, "Chat deleted successfully");
@@ -151,17 +182,25 @@ export async function deleteChat(chatId: string): Promise<ApiResponse> {
   }
 }
 
+/**
+ * 标记聊天为已读
+ */
 export async function markChatAsRead(chatId: string): Promise<ApiResponse> {
   try {
     const { userId: clerkId } = await auth();
-    const authenticatedClerkId = assert.authenticated(clerkId);
-    const userOrNull =
-      await userService.findUserByClerkId(authenticatedClerkId);
-    const user = assert.exists(userOrNull, "User");
+    if (!clerkId) throw new Error("Unauthorized");
 
-    await chatService.markChatAsRead(chatId, user.id);
-    // 不需要 revalidatePath，避免触发无限循环
-    // 未读数会在下次加载时自动更新
+    const user = await userRepository.findUserByClerkId(clerkId);
+    if (!user) throw new Error("User not found");
+
+    // 验证权限
+    const isMember = await chatRepository.isUserInChat(chatId, user.id);
+    assert.authorized(isMember, "Not a member of this chat");
+
+    // 标记已读
+    await chatRepository.markChatAsRead(chatId, user.id);
+
+    revalidatePath(`/chat/${chatId}`);
 
     return createSuccessResponse(null, "Chat marked as read");
   } catch (error) {
@@ -169,110 +208,125 @@ export async function markChatAsRead(chatId: string): Promise<ApiResponse> {
   }
 }
 
-export async function createChat(data: {
-  isGroup: boolean;
-  participantId?: string;
-  participants?: string[];
-  groupName?: string;
-  groupAvatar?: string;
-}): Promise<ApiResponse> {
+/**
+ * 创建新聊天
+ */
+export async function createChat(input: CreateChatInput): Promise<ApiResponse> {
   try {
     const { userId: clerkId } = await auth();
-    const authenticatedClerkId = assert.authenticated(clerkId);
-    const userOrNull =
-      await userService.findUserByClerkId(authenticatedClerkId);
-    const user = assert.exists(userOrNull, "User");
+    if (!clerkId) throw new Error("Unauthorized");
 
-    const chat = await chatService.createChat(user.id, {
-      isGroup: data.isGroup,
-      participantId: data.participantId,
-      memberIds: data.participants,
-      name: data.groupName,
-      avatar: data.groupAvatar,
-    });
+    const user = await userRepository.findUserByClerkId(clerkId);
+    if (!user) throw new Error("User not found");
 
-    if (!chat) {
-      throw new Error("Failed to create chat");
+    // 验证输入
+    if (input.isGroup && !input.name) {
+      throw createError.validation("Group chat must have a name");
     }
 
-    // 获取所有参与者 ID
-    const participantIds = await chatService.getChatParticipantIds(chat.id);
-
-    try {
-      const { mapChatToChatType } = await import("../mappers/chat.mapper");
-      const chatType = mapChatToChatType(chat);
-      emitNewChatToParticipants(participantIds, chatType);
-    } catch (socketError) {
-      console.error("[Action] Failed to emit new chat event:", socketError);
+    if (!input.isGroup && !input.participantId) {
+      throw createError.validation("One-on-one chat must have participant ID");
     }
+
+    if (input.participantId === user.id) {
+      throw createError.validation("Cannot create chat with yourself");
+    }
+
+    // 检查一对一聊天是否已存在
+    if (!input.isGroup && input.participantId) {
+      const existing = await chatRepository.findExistingOneOnOneChat(
+        user.id,
+        input.participantId,
+      );
+
+      if (existing) {
+        return createSuccessResponse(existing, "Chat already exists");
+      }
+    }
+
+    // 确定成员列表
+    const memberIds = input.isGroup
+      ? [user.id, ...(input.participants || [])]
+      : input.participantId
+        ? [user.id, input.participantId]
+        : [user.id];
+
+    // 创建聊天
+    const chat = await chatRepository.createChat(
+      {
+        name: input.name,
+        isGroup: input.isGroup,
+        avatar: input.avatar,
+        description: input.description,
+        creator: {
+          connect: { id: user.id },
+        },
+      },
+      memberIds,
+    );
+
+    // 使用 mapper 转换为完整的 ChatWithDetails 格式
+    const { mapChatToChatType } = await import("../mappers/chat.mapper");
+    const mappedChat = mapChatToChatType(chat as any);
+
+    // 通知相关用户
+    emitNewChatToParticipants(memberIds, mappedChat);
 
     revalidatePath("/chat");
 
-    return createSuccessResponse(chat, "Chat created successfully");
+    return createSuccessResponse(mappedChat, "Chat created successfully");
   } catch (error) {
     return handleServerActionError(error);
   }
 }
 
-export async function sendMessage(data: {
-  chatId: string;
-  content?: string;
-  image?: string;
-  replyToId?: string;
-}): Promise<ApiResponse> {
+/**
+ * 发送消息
+ */
+export async function sendMessage(
+  input: CreateMessageInput,
+): Promise<ApiResponse> {
   try {
     const { userId: clerkId } = await auth();
-    const authenticatedClerkId = assert.authenticated(clerkId);
-    const userOrNull =
-      await userService.findUserByClerkId(authenticatedClerkId);
-    const user = assert.exists(userOrNull, "User");
+    if (!clerkId) throw new Error("Unauthorized");
 
-    const isMember = await chatService.isUserInChat(data.chatId, user.id);
-    assert.authorized(isMember, "You are not a member of this chat");
+    const user = await userRepository.findUserByClerkId(clerkId);
+    if (!user) throw new Error("User not found");
 
-    const dbMessage = await messageService.createChatMessage(user.id, {
-      chatId: data.chatId,
-      content: data.content || "",
-      contentType: data.image ? "image" : "text",
-    });
-
-    // 转换为客户端格式
-    const message = {
-      _id: dbMessage.id,
-      chatId: dbMessage.chatId,
-      content: dbMessage.content,
-      image: dbMessage.image,
-      sender: {
-        _id: user.id,
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
-      replyTo: null,
-      createdAt: dbMessage.createdAt.toISOString(),
-      updatedAt: dbMessage.updatedAt.toISOString(),
-    };
-
-    // 更新聊天时间戳
-    await chatService.updateChatTimestamp(data.chatId);
-
-    // 通过 Socket 发送实时消息
-    try {
-      emitNewMessageToChatRoom(user.id, data.chatId, message);
-
-      // 获取聊天参与者并发送最后一条消息更新
-      const participantIds = await chatService.getChatParticipantIds(
-        data.chatId,
-      );
-      emitLastMessageToParticipants(participantIds, data.chatId, message);
-    } catch (socketError) {
-      console.error("Failed to emit message event:", socketError);
-      // 不影响主流程
+    // 验证输入
+    if (!input.chatId) {
+      throw createError.validation("Chat ID is required");
+    }
+    if (!input.content?.trim() && !input.image) {
+      throw createError.validation("Message must have content or image");
     }
 
-    revalidatePath(`/chat/${data.chatId}`);
+    // 验证聊天权限
+    const isMember = await chatRepository.isUserInChat(input.chatId, user.id);
+    assert.authorized(isMember, "Not a member of this chat");
+
+    // 创建消息
+    const message = await messageRepository.createChatMessage({
+      chat: { connect: { id: input.chatId } },
+      sender: { connect: { id: user.id } },
+      content: input.content,
+      image: input.image,
+      replyToId: input.replyToId,
+    });
+
+    // 更新聊天时间戳
+    await chatRepository.updateChatTimestamp(input.chatId);
+
+    // 获取聊天参与者
+    const participantIds = await chatRepository.getChatParticipantIds(
+      input.chatId,
+    );
+
+    // 实时推送消息
+    emitNewMessageToChatRoom(user.id, input.chatId, message);
+    emitLastMessageToParticipants(participantIds, input.chatId, message);
+
+    revalidatePath(`/chat/${input.chatId}`);
 
     return createSuccessResponse(message, "Message sent successfully");
   } catch (error) {

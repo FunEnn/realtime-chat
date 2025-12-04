@@ -4,15 +4,15 @@ import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import PublicRoomList from "@/components/public-room/public-room-list";
 import CollapsibleSection from "@/components/shared/collapsible-section";
-import type { UserType } from "@/types/auth.type";
-import type { ChatType } from "@/types/chat.type";
+import { getGroupName, getParticipants } from "@/lib/utils/type-guards";
+import type { ChatWithDetails, User } from "@/types";
 import ChatListHeader from "./chat-list-header";
 import ChatListItem from "./chat-list-item";
 
 interface ChatListDisplayProps {
-  chats: ChatType[];
-  users: UserType[];
-  currentUser: UserType;
+  chats: ChatWithDetails[];
+  users: User[];
+  currentUser: User;
 }
 
 export default function ChatListDisplay({
@@ -36,13 +36,14 @@ export default function ChatListDisplay({
       if (!query) return true; // 没有搜索词，显示所有
 
       // 搜索群聊名称
-      if (chat.groupName?.toLowerCase().includes(query)) {
+      if (getGroupName(chat)?.toLowerCase().includes(query)) {
         return true;
       }
 
       // 搜索参与者名称
+      const participants = getParticipants(chat);
       if (
-        chat.participants?.some(
+        participants.some(
           (p) =>
             p &&
             p.id !== currentUser.id &&

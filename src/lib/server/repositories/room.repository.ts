@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Room Repository - 公共聊天室数据访问层
  * 职责：仅负责数据库操作，不包含业务逻辑
  */
@@ -260,5 +260,60 @@ export async function getRoomMemberCount(roomId: string) {
 export async function getRoomMessageCount(roomId: string) {
   return prisma.roomMessage.count({
     where: { roomId },
+  });
+}
+
+/**
+ * 获取用户在聊天室的未读消息数
+ */
+export async function getRoomUnreadCount(roomId: string, userId: string) {
+  const member = await prisma.roomMember.findUnique({
+    where: {
+      roomId_userId: {
+        roomId,
+        userId,
+      },
+    },
+    select: { unreadCount: true },
+  });
+
+  return member?.unreadCount || 0;
+}
+
+/**
+ * 标记聊天室为已读
+ */
+export async function markRoomAsRead(roomId: string, userId: string) {
+  return prisma.roomMember.update({
+    where: {
+      roomId_userId: {
+        roomId,
+        userId,
+      },
+    },
+    data: {
+      unreadCount: 0,
+      lastReadAt: new Date(),
+    },
+  });
+}
+
+/**
+ * 增加聊天室未读消息数
+ */
+export async function incrementRoomUnreadCount(
+  roomId: string,
+  excludeUserId?: string,
+) {
+  return prisma.roomMember.updateMany({
+    where: {
+      roomId,
+      ...(excludeUserId && { userId: { not: excludeUserId } }),
+    },
+    data: {
+      unreadCount: {
+        increment: 1,
+      },
+    },
   });
 }

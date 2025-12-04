@@ -6,7 +6,8 @@ import { memo, useCallback, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import type { MessageType } from "@/types/chat.type";
+import { API } from "@/lib/api-client";
+import type { MessageWithSender } from "@/types";
 import ChatReplyBar from "../chat/chat-reply-bar";
 import { Button } from "../ui/button";
 import { Form, FormField, FormItem } from "../ui/form";
@@ -15,14 +16,14 @@ import { Input } from "../ui/input";
 interface SharedChatFooterProps {
   chatId: string | null;
   currentUserId: string | null;
-  replyTo: MessageType | null;
+  replyTo: MessageWithSender | null;
   onCancelReply: () => void;
   isSendingMsg: boolean;
   sendMessage: (payload: {
     chatId: string;
     content?: string;
     image?: string;
-    replyTo?: MessageType | null;
+    replyTo?: MessageWithSender | null;
   }) => void | Promise<void>;
   showReplyBar?: boolean;
 }
@@ -59,7 +60,7 @@ const SharedChatFooter = memo(
 
         try {
           const { validateImageFile, fileToDataUrl } = await import(
-            "@/lib/client/image-upload-api"
+            "@/lib/utils/image-upload"
           );
 
           // 验证文件
@@ -76,8 +77,7 @@ const SharedChatFooter = memo(
           setImage(dataUrl);
 
           toast.success("Image ready", { id: "image-process" });
-        } catch (error) {
-          console.error("Image processing failed:", error);
+        } catch {
           toast.error("Failed to process image", { id: "image-process" });
         }
       },
@@ -106,23 +106,9 @@ const SharedChatFooter = memo(
         if (image?.startsWith("data:")) {
           setIsUploadingImage(true);
           try {
-            const response = await fetch("/api/upload", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ file: image }),
-            });
-
-            if (!response.ok) {
-              throw new Error("Failed to upload image");
-            }
-
-            const data = await response.json();
+            const { data } = await API.post("/upload", { file: image });
             imageUrl = data.url;
-          } catch (uploadError) {
-            console.error("Failed to upload image to Cloudinary:", uploadError);
-            // 上传失败时继续使用 base64
+          } catch {
             toast.error("Failed to upload image, using fallback");
           } finally {
             setIsUploadingImage(false);

@@ -7,17 +7,24 @@ import AvatarWithBadge from "@/components/shared/avatar-with-badge";
 import { useAuth } from "@/hooks/use-clerk-auth";
 import { useMounted } from "@/hooks/use-mounted";
 import { useSocket } from "@/hooks/use-socket";
+import {
+  getCreatorId,
+  getGroupAvatar,
+  getGroupName,
+} from "@/lib/utils/type-guards";
 import { getOtherUserAndGroup } from "@/lib/utils/user-utils";
-import type { ChatType, PublicRoomChatType } from "@/types/chat.type";
+import type { ChatWithDetails, PublicRoomDisplay } from "@/types";
+import { PublicRoomInfoDialog } from "../public-room/public-room-info-dialog";
 import { PublicRoomSettingsDialog } from "../public-room/public-room-settings-dialog";
 import ChatHistoryDialog from "./chat-history-dialog";
 import { GroupSettingsDialog } from "./group-settings-dialog";
 
 interface ChatHeaderProps {
-  chat: ChatType | PublicRoomChatType;
+  chat: ChatWithDetails | PublicRoomDisplay;
   currentUserId: string | null;
   customActions?: React.ReactNode;
   isPublicRoom?: boolean;
+  isMember?: boolean;
 }
 
 const ChatHeader = memo(
@@ -26,10 +33,11 @@ const ChatHeader = memo(
     currentUserId,
     customActions,
     isPublicRoom = false,
+    isMember = true,
   }: ChatHeaderProps) => {
     const router = useRouter();
     const isMounted = useMounted();
-    const { onlineUsers } = useSocket(); // ✅ 订阅在线用户状态
+    const { onlineUsers } = useSocket();
 
     const {
       name,
@@ -40,15 +48,16 @@ const ChatHeader = memo(
       onlineCount,
       totalMembers,
     } = useMemo(
-      () => getOtherUserAndGroup(chat, currentUserId, isMounted),
-      [chat, currentUserId, isMounted], // ✅ 添加 onlineUsers 依赖
+      () => getOtherUserAndGroup(chat, currentUserId, isMounted, onlineUsers),
+      [chat, currentUserId, isMounted, onlineUsers],
     );
 
     // 检查当前用户是否为群聊创建者
     const isCreator = useMemo(() => {
-      if (!isGroup || !currentUserId || !chat.createdBy) return false;
-      return chat.createdBy.toString() === currentUserId.toString();
-    }, [chat.createdBy, currentUserId, isGroup]);
+      const creatorId = getCreatorId(chat);
+      if (!isGroup || !currentUserId || !creatorId) return false;
+      return creatorId.toString() === currentUserId.toString();
+    }, [chat, currentUserId, isGroup]);
 
     // 检查是否为管理员（用于公共聊天室）
     const { user } = useAuth();
@@ -84,8 +93,8 @@ const ChatHeader = memo(
             // 普通群聊：创建者点击头像编辑
             <GroupSettingsDialog
               chatId={chat.id}
-              currentGroupName={chat.groupName || ""}
-              currentGroupAvatar={chat.groupAvatar}
+              currentGroupName={getGroupName(chat) || ""}
+              currentGroupAvatar={getGroupAvatar(chat) || undefined}
               trigger={
                 <button
                   type="button"
@@ -104,11 +113,40 @@ const ChatHeader = memo(
             // 公共聊天室：管理员点击头像编辑
             <PublicRoomSettingsDialog
               roomId={chat.id}
-              currentRoomName={
-                "name" in chat ? chat.name : chat.groupName || ""
+              currentRoomName={getGroupName(chat) || ""}
+              currentDescription={
+                "description" in chat ? chat.description || "" : ""
               }
-              currentDescription={"description" in chat ? chat.description : ""}
-              currentAvatar={"avatar" in chat ? chat.avatar : chat.groupAvatar}
+              currentAvatar={getGroupAvatar(chat) || undefined}
+              trigger={
+                <button
+                  type="button"
+                  className="hover:opacity-80 transition-opacity"
+                >
+                  <AvatarWithBadge
+                    name={name}
+                    src={avatar}
+                    isGroup={isGroup}
+                    isOnline={isOnline}
+                  />
+                </button>
+              }
+            />
+          ) : isPublicRoom ? (
+            // 公共聊天室：非管理员点击头像查看信息
+            <PublicRoomInfoDialog
+              roomId={chat.id}
+              roomName={getGroupName(chat) || ""}
+              roomDescription={
+                "description" in chat ? chat.description || "" : ""
+              }
+              roomAvatar={getGroupAvatar(chat) || undefined}
+              memberCount={
+                "_count" in chat && chat._count
+                  ? chat._count.members
+                  : undefined
+              }
+              isMember={isMember}
               trigger={
                 <button
                   type="button"
@@ -137,13 +175,13 @@ const ChatHeader = memo(
             </h5>
             {isGroup && onlineCount !== undefined ? (
               <p className="text-xs md:text-sm text-muted-foreground truncate">
-                {onlineCount > 0 && (
+                {typeof onlineCount === "number" && onlineCount > 0 ? (
                   <>
                     <span className="text-green-500">{onlineCount} online</span>
                     {" • "}
                   </>
-                )}
-                {totalMembers} members
+                ) : null}
+                {String(totalMembers ?? 0)} members
               </p>
             ) : (
               <p

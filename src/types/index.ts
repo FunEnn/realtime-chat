@@ -1,73 +1,51 @@
-/**
- * 类型定义统一导出
- *
- * 推荐使用方式：
- * import type { User, Chat, Message, ApiResponse } from '@/types';
- */
+﻿// Prisma 类型系统
 
-export type { LoginInput, RegisterInput, UserType } from "./auth.type";
-// 旧类型（向后兼容）
-// @deprecated 请使用新的类型定义
-export type {
-  ChatType,
-  CreateChatInput,
-  CreateMessageType,
-  MessageType,
-  messageToLegacy,
-  PublicRoomChatType,
-  SendMessageInput,
-} from "./chat.type";
+// 类型守卫工具
+export * from "../lib/utils/type-guards";
+
 // 通用类型
+export type { ApiError, ApiResponse } from "./common";
 export type {
-  ApiError,
-  ApiResponse,
-  BaseEntity,
-  FilterCondition,
-  FilterOperator,
-  OptionalId,
-  PaginatedData,
-  PaginatedResponse,
-  PaginationParams,
-  PartialUpdate,
-  SoftDelete,
-  SortOrder,
-  SortParams,
-  Timestamps,
-  UUID,
-} from "./common";
-// DTO 类型
-export type {
-  ChatListQueryParams,
-  ClerkUserSyncDto,
-  CreateChatDto,
-  CreatePublicRoomDto,
-  MessageQueryParams,
-  RoomMessageQueryParams,
-  SendMessageDto,
-  UpdateChatDto,
-  UpdatePublicRoomDto,
-  UpdateUserProfileDto,
-  UserQueryParams,
-} from "./dto";
-// 实体类型
-export type {
+  // Chat 类型
   Chat,
+  // Member 类型
   ChatMember,
+  ChatMemberWithUser,
+  ChatOrRoom,
   ChatWithDetails,
-  Message,
-  MessageListResult,
-  PublicRoom,
-  PublicRoomWithDetails,
-  RoomMember,
-  RoomMessage,
-  RoomMessageListResult,
-  User,
-} from "./entities";
-export type {
+  ChatWithMembers,
+  ChatWithMessages,
+  // Input DTO 类型
+  CreateChatInput,
+  CreateMessageInput,
   CreatePublicRoomInput,
-  PublicRoomDetailType,
-  PublicRoomType,
-} from "./public-room.type";
+  // Message 类型
+  Message,
+  MessageWithDetails,
+  MessageWithSender,
+  // 扩展类型
+  OptimisticMessage,
+  // PublicRoom 类型
+  PublicRoom,
+  PublicRoomDisplay,
+  PublicRoomWithCreator,
+  PublicRoomWithDetails,
+  PublicRoomWithMembers,
+  RoomMember,
+  RoomMemberWithUser,
+  // RoomMessage 类型
+  RoomMessage,
+  RoomMessageWithDetails,
+  RoomMessageWithSender,
+  UpdateUserProfileInput,
+  // User 类型
+  User,
+  UserChatListItem,
+  UserPublic,
+  WithLastMessage,
+  WithParticipants,
+} from "./prisma.types";
+
 // Socket 事件类型
 export type {
   ChatTypingMap,

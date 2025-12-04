@@ -14,7 +14,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-clerk-auth";
-import { API } from "@/lib/api/axios-client";
+import { updateUserProfile } from "@/lib/server/actions/user";
 
 interface ProfileSettingsDialogProps {
   trigger?: React.ReactNode;
@@ -36,23 +36,29 @@ export default function ProfileSettingsDialog({
 
     setIsLoading(true);
     try {
-      const { data } = await API.patch<{ user: typeof user }>("/user/profile", {
+      const result = await updateUserProfile({
         bio: bio.trim(),
       });
 
-      if (data.user) {
-        setUser(data.user);
-        toast.success("Bio updated successfully");
+      if (
+        result.success &&
+        result.data &&
+        typeof result.data === "object" &&
+        "id" in result.data
+      ) {
+        setUser(result.data as any);
         setOpen(false);
+        toast.success("Bio saved successfully");
+      } else {
+        const errorMsg =
+          typeof result.error === "string"
+            ? result.error
+            : "Failed to save bio";
+        toast.error(errorMsg);
       }
     } catch (error) {
       console.error("Update bio error:", error);
-      const errorMessage =
-        error instanceof Error && "response" in error
-          ? (error as { response?: { data?: { message?: string } } }).response
-              ?.data?.message
-          : undefined;
-      toast.error(errorMessage || "Failed to update bio");
+      toast.error("Failed to save bio");
     } finally {
       setIsLoading(false);
     }
@@ -61,7 +67,6 @@ export default function ProfileSettingsDialog({
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
     if (newOpen) {
-      // Reset form when opening
       setBio(user?.bio || "");
     }
   };

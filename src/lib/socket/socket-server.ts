@@ -1,13 +1,13 @@
-import type { Server as HTTPServer } from "node:http";
+﻿import type { Server as HTTPServer } from "node:http";
 import { Server, type Socket } from "socket.io";
-import * as chatService from "@/lib/server/services/chat.service";
-import * as userService from "@/lib/server/services/user.service";
+import * as chatRepository from "@/lib/server/repositories/chat.repository";
+import * as roomRepository from "@/lib/server/repositories/room.repository";
+import * as userRepository from "@/lib/server/repositories/user.repository";
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
 }
 
-// 使用 global 来跨进程共享 Socket.IO 实例
 declare global {
   var __socketIO: Server | undefined;
   var __onlineUsers: Map<string, string> | undefined;
@@ -17,7 +17,6 @@ let io: Server | null = global.__socketIO || null;
 const onlineUsers: Map<string, string> =
   global.__onlineUsers || new Map<string, string>();
 
-// 确保全局变量被设置
 if (!global.__onlineUsers) {
   global.__onlineUsers = onlineUsers;
 }
@@ -36,10 +35,8 @@ export function initializeSocket(httpServer: HTTPServer) {
     path: "/api/socket/io",
   });
 
-  // 保存到全局变量以跨进程共享
   global.__socketIO = io;
 
-  // Socket.IO 认证中间件
   io.use(async (socket: AuthenticatedSocket, next) => {
     try {
       const authToken = socket.handshake.auth?.token;
@@ -54,7 +51,6 @@ export function initializeSocket(httpServer: HTTPServer) {
         return next(new Error("Unauthorized: No token provided"));
       }
 
-      // 使用 Clerk 验证 token
       try {
         const { verifyToken } = await import("@clerk/backend");
         const verifiedToken = await verifyToken(token, {
@@ -62,7 +58,9 @@ export function initializeSocket(httpServer: HTTPServer) {
         });
 
         if (verifiedToken.sub) {
-          const user = await userService.findUserByClerkId(verifiedToken.sub);
+          const user = await userRepository.findUserByClerkId(
+            verifiedToken.sub,
+          );
 
           if (user) {
             socket.userId = user.id;
@@ -81,7 +79,6 @@ export function initializeSocket(httpServer: HTTPServer) {
     }
   });
 
-  // Socket.IO 连接处理
   io.on("connection", (socket: AuthenticatedSocket) => {
     const userId = socket.userId;
     const socketId = socket.id;
@@ -91,24 +88,26 @@ export function initializeSocket(httpServer: HTTPServer) {
       return;
     }
 
-    // 注册用户的 socket
     onlineUsers.set(userId, socketId);
-
-    // 广播在线用户列表
     io?.emit("online:users", Array.from(onlineUsers.keys()));
-
-    // 创建用户的个人房间
     socket.join(`user:${userId}`);
 
-    // 加入聊天室
     socket.on(
       "chat:join",
       async (chatId: string, callback?: (err?: string) => void) => {
         try {
-          // 验证用户是否有权限加入
-          const isInChat = await chatService.isUserInChat(chatId, userId);
+          const isInPrivateChat = await chatRepository.isUserInChat(
+            chatId,
+            userId,
+          );
+          const isInPublicRoom = await roomRepository.isUserInRoom(
+            chatId,
+            userId,
+          );
+          const publicRoomExists =
+            await roomRepository.findPublicRoomById(chatId);
 
-          if (!isInChat) {
+          if (!isInPrivateChat && !isInPublicRoom && !publicRoomExists) {
             callback?.("You are not a member of this chat");
             return;
           }
@@ -122,19 +121,15 @@ export function initializeSocket(httpServer: HTTPServer) {
       },
     );
 
-    // 离开聊天室
     socket.on("chat:leave", (chatId: string) => {
       if (chatId) {
         socket.leave(`chat:${chatId}`);
       }
     });
 
-    // 断开连接
     socket.on("disconnect", () => {
       if (onlineUsers.get(userId) === socketId) {
         onlineUsers.delete(userId);
-
-        // 广播更新的在线用户列表
         io?.emit("online:users", Array.from(onlineUsers.keys()));
       }
     });
@@ -166,7 +161,6 @@ export function emitNewChatToParticipants(
   participantIds: string[] = [],
   chat: unknown,
 ) {
-  // 尝试从全局变量获取
   if (!io && global.__socketIO) {
     io = global.__socketIO;
   }
@@ -176,16 +170,50 @@ export function emitNewChatToParticipants(
     return;
   }
 
-  console.log(
-    "[Socket] Emitting new chat to participants:",
-    participantIds,
-    "chat:",
-    chat,
-  );
-
   for (const participantId of participantIds) {
     io.to(`user:${participantId}`).emit("chat:new", chat);
-    console.log(`[Socket] Emitted to user:${participantId}`);
+  }
+}
+
+/**
+ * 向聊天参与者发送聊天删除通知
+ */
+export function emitChatDeletedToParticipants(
+  participantIds: string[] = [],
+  chatId: string,
+) {
+  if (!io && global.__socketIO) {
+    io = global.__socketIO;
+  }
+
+  if (!io) {
+    console.error("[Socket] IO not initialized");
+    return;
+  }
+
+  for (const participantId of participantIds) {
+    io.to(`user:${participantId}`).emit("chat:deleted", { chatId });
+  }
+}
+
+/**
+ * 向聊天参与者发送聊天信息更新通知
+ */
+export function emitChatInfoUpdatedToParticipants(
+  participantIds: string[] = [],
+  chatData: unknown,
+) {
+  if (!io && global.__socketIO) {
+    io = global.__socketIO;
+  }
+
+  if (!io) {
+    console.error("[Socket] IO not initialized");
+    return;
+  }
+
+  for (const participantId of participantIds) {
+    io.to(`user:${participantId}`).emit("chat:info-updated", chatData);
   }
 }
 
@@ -197,16 +225,15 @@ export function emitNewMessageToChatRoom(
   chatId: string,
   message: unknown,
 ) {
-  // 尝试从全局变量获取
   if (!io && global.__socketIO) {
     io = global.__socketIO;
   }
 
   if (!io) {
+    console.error("[Socket] IO not initialized, cannot emit message");
     return;
   }
 
-  // 发送给房间内所有人，包括发送者
   io.to(`chat:${chatId}`).emit("message:new", message);
 }
 
@@ -235,6 +262,54 @@ export function emitLastMessageToParticipants(
 export function emitSystemMessage(chatId: string, message: string) {
   const io = getIO();
   io.to(`chat:${chatId}`).emit("system:message", { message });
+}
+
+/**
+ * 广播新公共聊天室创建
+ */
+export function emitNewPublicRoom(roomData: unknown) {
+  if (!io && global.__socketIO) {
+    io = global.__socketIO;
+  }
+
+  if (!io) {
+    console.error("[Socket] IO not initialized, cannot emit new room");
+    return;
+  }
+
+  io.emit("public-room:created", roomData);
+}
+
+/**
+ * 广播公共聊天室删除
+ */
+export function emitPublicRoomDeleted(roomId: string) {
+  if (!io && global.__socketIO) {
+    io = global.__socketIO;
+  }
+
+  if (!io) {
+    console.error("[Socket] IO not initialized, cannot emit room deleted");
+    return;
+  }
+
+  io.emit("public-room:deleted", { roomId });
+}
+
+/**
+ * 广播公共聊天室更新（例如成员数量变化）
+ */
+export function emitPublicRoomUpdate(_roomId: string, roomData: unknown) {
+  if (!io && global.__socketIO) {
+    io = global.__socketIO;
+  }
+
+  if (!io) {
+    console.error("[Socket] IO not initialized, cannot emit room update");
+    return;
+  }
+
+  io.emit("public-room:updated", roomData);
 }
 
 /**

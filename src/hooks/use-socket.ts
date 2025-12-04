@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import { io, type Socket } from "socket.io-client";
 import { create } from "zustand";
-import { getAuthToken } from "@/lib/api/axios-client";
+import { getAuthToken } from "@/lib/api-client";
 
 const SOCKET_URL =
   process.env.NEXT_PUBLIC_SOCKET_URL ||
@@ -73,8 +73,7 @@ export const useSocket = create<SocketState>()((set, get) => ({
       set({ isConnected: false });
     });
 
-    newSocket.on("connect_error", (error) => {
-      console.error("[Socket] Connection error:", error.message);
+    newSocket.on("connect_error", () => {
       set((state) => ({
         reconnectAttempts: state.reconnectAttempts + 1,
         isConnected: false,

@@ -1,12 +1,5 @@
-/**
- * Chat Mapper - 数据转换层
- * 将 Prisma 返回的数据转换为前端期望的格式
- */
+﻿import type { ChatWithDetails, MessageWithSender, User } from "@/types";
 
-import type { UserType } from "@/types/auth.type";
-import type { ChatType, MessageType } from "@/types/chat.type";
-
-// Prisma 返回的类型（Date 对象）
 type PrismaUser = {
   id: string;
   createdAt: Date;
@@ -58,110 +51,110 @@ type PrismaChat = {
   unreadCount?: number;
 };
 
-/**
- * 将 User 转换为 UserType
- */
-export function mapUserToUserType(user: PrismaUser): UserType {
-  if (!user) {
-    console.error("[Mapper] mapUserToUserType received null/undefined user");
-    throw new Error("User is required for mapping");
-  }
-
-  if (!user.id || !user.email) {
-    console.error("[Mapper] Invalid user data:", user);
+export function mapUserToUserType(user: PrismaUser): User {
+  if (!user?.id || !user.email) {
     throw new Error("User must have id and email");
   }
 
-  try {
-    return {
-      id: user.id,
-      clerkId: user.clerkId,
-      email: user.email,
-      name: user.name ?? "Unknown",
-      avatar: user.avatar ?? null,
-      bio: user.bio ?? undefined,
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
-    };
-  } catch (error) {
-    console.error("[Mapper] Error mapping user:", error);
-    console.error("[Mapper] User data:", JSON.stringify(user, null, 2));
-    throw error;
-  }
+  const mappedUser: User = {
+    id: user.id,
+    clerkId: user.clerkId,
+    email: user.email,
+    name: user.name ?? "Unknown",
+    avatar: user.avatar ?? null,
+    bio: user.bio ?? null,
+    isAdmin: false,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
+  return mappedUser;
 }
 
-/**
- * 将 Message 转换为 MessageType
- */
-export function mapMessageToMessageType(message: PrismaMessage): MessageType {
-  return {
+export function mapMessageToMessageType(
+  message: PrismaMessage,
+): MessageWithSender {
+  if (!message?.id || !message.chatId) {
+    throw new Error("Message must have id and chatId");
+  }
+
+  if (!message.sender) {
+    throw new Error("Message sender is required");
+  }
+
+  const mappedMessage: MessageWithSender = {
     id: message.id,
     chatId: message.chatId,
+    senderId: message.senderId,
     content: message.content ?? null,
     image: message.image ?? null,
-    sender: message.sender ? mapUserToUserType(message.sender) : null,
-    replyTo: null, // 如果需要可以递归转换
-    createdAt: message.createdAt.toISOString(),
-    updatedAt: message.updatedAt.toISOString(),
+    replyToId: message.replyToId,
+    sender: mapUserToUserType(message.sender),
+    replyTo: null,
+    createdAt: message.createdAt,
+    updatedAt: message.updatedAt,
   };
+  return mappedMessage;
 }
 
-/**
- * 将 Chat 转换为 ChatType
- */
-export function mapChatToChatType(chat: PrismaChat): ChatType {
-  try {
-    // 提取参与者（不包括创建者自己）
-    const participants: UserType[] = [];
+export function mapChatToChatType(chat: PrismaChat): ChatWithDetails {
+  const participants: User[] = [];
 
-    if (chat.members) {
-      for (const member of chat.members) {
-        if (member?.user) {
-          participants.push(mapUserToUserType(member.user));
-        }
+  if (chat.members) {
+    for (const member of chat.members) {
+      if (member?.user) {
+        participants.push(mapUserToUserType(member.user));
       }
     }
-
-    // 获取最后一条消息
-    let lastMessage: MessageType | null = null;
-    if (chat.lastMessage) {
-      lastMessage = mapMessageToMessageType(chat.lastMessage);
-    } else if (chat.messages && chat.messages.length > 0) {
-      lastMessage = mapMessageToMessageType(chat.messages[0]);
-    }
-
-    const result: ChatType = {
-      id: chat.id,
-      lastMessage,
-      isGroup: chat.isGroup || false,
-      isAiChat: false,
-      createdBy: chat.createdById,
-      groupName: chat.isGroup ? (chat.name ?? undefined) : undefined,
-      groupAvatar: chat.isGroup ? (chat.avatar ?? undefined) : undefined,
-      unreadCount: chat.unreadCount ?? 0,
-      createdAt: chat.createdAt.toISOString(),
-      updatedAt: chat.updatedAt.toISOString(),
-      participants,
-    };
-
-    return result;
-  } catch (error) {
-    console.error("[Mapper] Error mapping chat:", error);
-    console.error("[Mapper] Chat data:", JSON.stringify(chat, null, 2));
-    throw error;
   }
+
+  let lastMessage: MessageWithSender | null = null;
+  if (chat.lastMessage) {
+    lastMessage = mapMessageToMessageType(chat.lastMessage);
+  } else if (chat.messages && chat.messages.length > 0) {
+    lastMessage = mapMessageToMessageType(chat.messages[0]);
+  }
+
+  const mappedChat: ChatWithDetails = {
+    id: chat.id,
+    name: chat.name,
+    avatar: chat.avatar,
+    description: chat.description,
+    isGroup: chat.isGroup || false,
+    createdById: chat.createdById,
+    createdBy: chat.createdById,
+    lastMessage,
+    participants,
+    unreadCount: chat.unreadCount ?? 0,
+    createdAt: chat.createdAt,
+    updatedAt: chat.updatedAt,
+    groupName: chat.isGroup ? chat.name : undefined,
+    groupAvatar: chat.isGroup ? chat.avatar : undefined,
+    members: (chat.members ?? []) as any,
+    messages: (chat.messages ?? []) as any,
+    creator: chat.creator
+      ? ({
+          ...chat.creator,
+          isAdmin: (chat.creator as any).isAdmin ?? false,
+        } as any)
+      : ({
+          id: chat.createdById,
+          clerkId: "",
+          email: "",
+          name: "Unknown",
+          avatar: null,
+          bio: null,
+          isAdmin: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as any),
+  };
+  return mappedChat;
 }
 
-/**
- * 批量转换 Chat 列表
- */
-export function mapChatsToChatTypes(chats: PrismaChat[]): ChatType[] {
+export function mapChatsToChatTypes(chats: PrismaChat[]): ChatWithDetails[] {
   return chats.map(mapChatToChatType);
 }
 
-/**
- * 批量转换 User 列表
- */
-export function mapUsersToUserTypes(users: PrismaUser[]): UserType[] {
+export function mapUsersToUserTypes(users: PrismaUser[]): User[] {
   return users.map(mapUserToUserType);
 }

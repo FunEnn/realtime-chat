@@ -1,7 +1,13 @@
-import { format, isThisWeek, isToday, isYesterday } from "date-fns";
+﻿import { format, isThisWeek, isToday, isYesterday } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { useSocket } from "@/hooks/use-socket";
-import type { ChatType, PublicRoomChatType } from "@/types/chat.type";
+import type { ChatWithDetails, PublicRoomDisplay } from "@/types";
+import {
+  getGroupAvatar,
+  getGroupName,
+  getParticipants,
+  hasParticipants,
+} from "./type-guards";
 
 const checkUserOnline = (userId: string, onlineUsers: string[]): boolean =>
   onlineUsers.includes(userId);
@@ -13,25 +19,59 @@ export const isUserOnline = (userId?: string): boolean => {
 };
 
 export const getOtherUserAndGroup = (
-  chat: ChatType | PublicRoomChatType,
+  chat: ChatWithDetails | PublicRoomDisplay | null | undefined,
   currentUserId: string | null,
   isMounted: boolean = true,
+  providedOnlineUsers?: string[],
 ) => {
-  const onlineUsers = isMounted ? useSocket.getState().onlineUsers : [];
-  const isPublicRoom = "members" in chat && "memberCount" in chat;
+  if (!chat) {
+    return {
+      name: "Unknown",
+      subheading: "Offline",
+      avatar: "",
+      isGroup: false,
+      isOnline: false,
+    };
+  }
+
+  const onlineUsers =
+    providedOnlineUsers ?? (isMounted ? useSocket.getState().onlineUsers : []);
+
+  // 检查是否为公共聊天室
+  const isPublicRoom =
+    "members" in chat && ("memberCount" in chat || "_count" in chat);
 
   if (isPublicRoom) {
     const members = chat.members || [];
+
+    const sampleMember = members.length > 0 ? members[0] : null;
+    const memberType = typeof sampleMember;
+    const isStringArray = memberType === "string";
+
+    const memberIds = isStringArray
+      ? members
+      : members.map((m: any) => m?.userId || m?.user?.id).filter(Boolean);
+
     const onlineCount = isMounted
-      ? members.filter((memberId: string) =>
+      ? memberIds.filter((memberId: string) =>
           checkUserOnline(memberId, onlineUsers),
         ).length
       : 0;
-    const totalMembers = chat.memberCount || members.length || 0;
+
+    // 支持两种数据结构：memberCount 和 _count.members
+    const totalMembers =
+      ("memberCount" in chat
+        ? chat.memberCount
+        : (chat as any)._count?.members) ||
+      members.length ||
+      0;
 
     return {
       name: chat.name || "Public Room",
-      subheading: chat.description || `${totalMembers} members`,
+      subheading:
+        onlineCount > 0
+          ? `${onlineCount} online • ${totalMembers} members`
+          : chat.description || `${totalMembers} members`,
       avatar: chat.avatar || "",
       isGroup: true,
       isOnline: false,
@@ -40,22 +80,23 @@ export const getOtherUserAndGroup = (
     };
   }
 
-  const isGroup = chat?.isGroup;
+  const isGroup = "isGroup" in chat ? chat.isGroup : false;
 
-  if (isGroup && "participants" in chat) {
+  if (isGroup && chat) {
+    // 获取参与者列表，优先从 participants，其次从 members
+    const participants = getParticipants(chat);
     const onlineCount = isMounted
-      ? chat.participants.filter((p) => checkUserOnline(p.id, onlineUsers))
-          .length
+      ? participants.filter((p) => checkUserOnline(p.id, onlineUsers)).length
       : 0;
-    const totalMembers = chat.participants.length;
+    const totalMembers = participants.length;
 
     return {
-      name: chat.groupName || "Unnamed Group",
+      name: getGroupName(chat) || "Unnamed Group",
       subheading:
         onlineCount > 0
           ? `${onlineCount} online • ${totalMembers} members`
           : `${totalMembers} members`,
-      avatar: chat.groupAvatar || "",
+      avatar: getGroupAvatar(chat) || "",
       isGroup,
       onlineCount,
       totalMembers,
@@ -72,20 +113,18 @@ export const getOtherUserAndGroup = (
     };
   }
 
+  if (!chat || !hasParticipants(chat)) {
+    return {
+      name: "Unknown",
+      subheading: "Offline",
+      avatar: "",
+      isGroup: false,
+      isOnline: false,
+    };
+  }
+
   const other = chat.participants.find((p) => p.id !== currentUserId);
   const isOnline = other?.id ? checkUserOnline(other.id, onlineUsers) : false;
-
-  // 调试日志 - 只显示前3个聊天
-  if (other && isMounted && Math.random() < 0.1) {
-    console.log("[UserUtils] Chat item online check:", {
-      chatId: "chatId" in chat ? chat.id : "unknown",
-      userName: other?.name,
-      userId: other.id,
-      onlineUsersCount: onlineUsers.length,
-      isInOnlineList: onlineUsers.includes(other.id),
-      isOnline,
-    });
-  }
 
   return {
     name: other?.name || "Unknown",

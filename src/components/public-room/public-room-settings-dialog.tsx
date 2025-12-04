@@ -23,7 +23,6 @@ import { useImageUpload } from "@/hooks/use-image-upload";
 import {
   checkIsAdmin,
   deletePublicRoom,
-  leavePublicRoom,
   updatePublicRoom,
 } from "@/lib/server/actions/public-room";
 
@@ -115,7 +114,11 @@ export const PublicRoomSettingsDialog = memo(
           setOpen(false);
           router.refresh();
         } else {
-          toast.error(result.error || "Failed to update room");
+          toast.error(
+            typeof result.error === "string"
+              ? result.error
+              : "Failed to update room",
+          );
         }
       } finally {
         setIsUpdating(false);
@@ -135,10 +138,7 @@ export const PublicRoomSettingsDialog = memo(
     const handleDelete = async () => {
       setIsDeleting(true);
       try {
-        // 先离开房间（Socket）
-        await leavePublicRoom(roomId);
-
-        // 再删除房间
+        // 删除公共聊天室（仅管理员）
         const result = await deletePublicRoom(roomId);
         if (result.success) {
           toast.success("Room deleted successfully");
@@ -146,7 +146,11 @@ export const PublicRoomSettingsDialog = memo(
           router.push("/chat");
           router.refresh();
         } else {
-          toast.error(result.error || "Failed to delete room");
+          const errorMsg =
+            typeof result.error === "string"
+              ? result.error
+              : "Failed to delete room";
+          toast.error(errorMsg);
         }
       } catch (error) {
         console.error("Delete room error:", error);
@@ -179,7 +183,7 @@ export const PublicRoomSettingsDialog = memo(
             aria-describedby={undefined}
           >
             <DialogHeader>
-              <DialogTitle>Room Settings</DialogTitle>
+              <DialogTitle>Room Settings (Admin)</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="flex flex-col items-center gap-4">
@@ -238,8 +242,9 @@ export const PublicRoomSettingsDialog = memo(
             {showDeleteConfirm ? (
               <div className="border-t pt-4">
                 <p className="text-sm text-destructive mb-4">
-                  Are you sure you want to delete this room? This action cannot
-                  be undone. All messages will be permanently deleted.
+                  ⚠️ Are you sure you want to delete this room? This action
+                  cannot be undone. All messages and members will be permanently
+                  deleted.
                 </p>
                 <DialogFooter>
                   <Button
@@ -257,12 +262,28 @@ export const PublicRoomSettingsDialog = memo(
                     {(isDeleting || isUploading) && (
                       <Spinner className="w-4 h-4 mr-2" />
                     )}
-                    Delete Room
+                    Delete Room Permanently
                   </Button>
                 </DialogFooter>
               </div>
             ) : (
               <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => handleOpenChange(false)}
+                  disabled={isUpdating || isUploading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={isUpdating || isUploading || !name.trim()}
+                >
+                  {(isUpdating || isUploading) && (
+                    <Spinner className="w-4 h-4 mr-2" />
+                  )}
+                  {isUploading ? "Uploading..." : "Save Changes"}
+                </Button>
                 <Button
                   variant="destructive"
                   onClick={showConfirmDialog}
@@ -270,24 +291,6 @@ export const PublicRoomSettingsDialog = memo(
                 >
                   Delete Room
                 </Button>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => handleOpenChange(false)}
-                    disabled={isUpdating || isUploading}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSave}
-                    disabled={isUpdating || isUploading || !name.trim()}
-                  >
-                    {(isUpdating || isUploading) && (
-                      <Spinner className="w-4 h-4 mr-2" />
-                    )}
-                    {isUploading ? "Uploading..." : "Save Changes"}
-                  </Button>
-                </div>
               </DialogFooter>
             )}
           </DialogContent>

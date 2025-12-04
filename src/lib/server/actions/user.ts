@@ -1,120 +1,94 @@
-"use server";
+﻿"use server";
 
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import * as userService from "../services/user.service";
+import { z } from "zod";
+import {
+  createSuccessResponse,
+  handleServerActionError,
+} from "@/lib/errors/error-handler";
+import type { ApiResponse } from "@/types/common";
+import type { UpdateUserProfileInput } from "@/types/prisma.types";
+import prisma from "../prisma";
+import * as userRepository from "../repositories/user.repository";
+
+const updateProfileSchema = z.object({
+  name: z.string().min(1).max(50).optional(),
+  avatar: z.string().url().optional(),
+  bio: z.string().max(500).optional(),
+});
 
 /**
  * 获取所有用户列表
  */
-export async function getAllUsers() {
+export async function getAllUsers(): Promise<ApiResponse> {
   try {
     const { userId: clerkId } = await auth();
+    if (!clerkId) throw new Error("Unauthorized");
 
-    if (!clerkId) {
-      throw new Error("Unauthorized");
-    }
+    const users = await userRepository.getAllUsers();
 
-    const users = await userService.getAllUsers();
-    return { success: true, users };
+    return createSuccessResponse(users, "Users fetched successfully");
   } catch (error) {
-    console.error("Get all users error:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get users",
-    };
+    return handleServerActionError(error);
   }
 }
 
 /**
  * 更新用户资料
  */
-export async function updateUserProfile(data: {
-  name?: string;
-  avatar?: string;
-  bio?: string;
-}) {
+export async function updateUserProfile(
+  data: UpdateUserProfileInput,
+): Promise<ApiResponse> {
   try {
     const { userId: clerkId } = await auth();
+    if (!clerkId) throw new Error("Unauthorized");
 
-    if (!clerkId) {
-      throw new Error("Unauthorized");
-    }
+    const validatedData = updateProfileSchema.parse(data);
 
-    const user = await userService.findUserByClerkId(clerkId);
+    const updatedUser = await prisma.user.update({
+      where: { clerkId },
+      data: validatedData,
+    });
 
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const updatedUser = await userService.updateUser(user.id, data);
-
-    // 重新验证相关页面
     revalidatePath("/chat");
-    revalidatePath(`/user/${user.id}`);
 
-    return { success: true, user: updatedUser };
+    return createSuccessResponse(updatedUser, "Profile updated successfully");
   } catch (error) {
-    console.error("Update user profile error:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to update profile",
-    };
+    return handleServerActionError(error);
   }
 }
 
 /**
  * 获取当前用户信息
  */
-export async function getCurrentUser() {
+export async function getCurrentUser(): Promise<ApiResponse> {
   try {
     const { userId: clerkId } = await auth();
+    if (!clerkId) throw new Error("Unauthorized");
 
-    if (!clerkId) {
-      throw new Error("Unauthorized");
-    }
+    const user = await userRepository.findUserByClerkId(clerkId);
+    if (!user) throw new Error("User not found");
 
-    const user = await userService.findUserByClerkId(clerkId);
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    return { success: true, user };
+    return createSuccessResponse(user, "User fetched successfully");
   } catch (error) {
-    console.error("Get current user error:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to get current user",
-    };
+    return handleServerActionError(error);
   }
 }
 
 /**
  * 获取用户信息（通过 ID）
  */
-export async function getUserById(userId: string) {
+export async function getUserById(userId: string): Promise<ApiResponse> {
   try {
     const { userId: clerkId } = await auth();
+    if (!clerkId) throw new Error("Unauthorized");
 
-    if (!clerkId) {
-      throw new Error("Unauthorized");
-    }
+    const user = await userRepository.findUserById(userId);
+    if (!user) throw new Error("User not found");
 
-    const user = await userService.findUserById(userId);
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    return { success: true, user };
+    return createSuccessResponse(user, "User fetched successfully");
   } catch (error) {
-    console.error("Get user by ID error:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get user",
-    };
+    return handleServerActionError(error);
   }
 }
