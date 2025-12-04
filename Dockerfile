@@ -1,14 +1,12 @@
 FROM node:20-alpine AS base
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
 FROM base AS deps
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 
-RUN pnpm install --frozen-lockfile
+RUN npm install
 
 FROM base AS builder
 
@@ -18,18 +16,10 @@ COPY --from=deps /app/node_modules ./node_modules
 
 COPY . .
 
-RUN pnpm prisma generate
+RUN npx prisma generate
 
 ENV NEXT_TELEMETRY_DISABLED 1
-RUN pnpm build
-
-FROM base AS prod-deps
-
-WORKDIR /app
-
-COPY package.json pnpm-lock.yaml ./
-
-RUN pnpm install --prod --frozen-lockfile
+RUN npm run build
 
 FROM base AS runner
 
@@ -43,7 +33,7 @@ ENV PORT 3000
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
@@ -51,8 +41,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/server.ts ./server.ts
 COPY --from=builder --chown=nextjs:nodejs /app/next.config.ts ./next.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src ./src
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
-
-RUN pnpm add tsx
 
 USER nextjs
 
