@@ -269,28 +269,30 @@ export const PublicRoomSettingsDialog = memo(
             ) : (
               <DialogFooter>
                 <Button
-                  variant="outline"
-                  onClick={() => handleOpenChange(false)}
-                  disabled={isUpdating || isUploading}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  disabled={isUpdating || isUploading || !name.trim()}
-                >
-                  {(isUpdating || isUploading) && (
-                    <Spinner className="w-4 h-4 mr-2" />
-                  )}
-                  {isUploading ? "Uploading..." : "Save Changes"}
-                </Button>
-                <Button
                   variant="destructive"
                   onClick={showConfirmDialog}
                   disabled={isUpdating || isDeleting || isUploading}
                 >
                   Delete Room
                 </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleOpenChange(false)}
+                    disabled={isUpdating || isUploading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSave}
+                    disabled={isUpdating || isUploading || !name.trim()}
+                  >
+                    {(isUpdating || isUploading) && (
+                      <Spinner className="w-4 h-4 mr-2" />
+                    )}
+                    {isUploading ? "Uploading..." : "Save Changes"}
+                  </Button>
+                </div>
               </DialogFooter>
             )}
           </DialogContent>

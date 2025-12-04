@@ -59,25 +59,27 @@ const SharedChatFooter = memo(
         if (!file) return;
 
         try {
-          const { validateImageFile, fileToDataUrl } = await import(
+          const { validateImageFile } = await import(
             "@/lib/utils/image-upload"
           );
+          const { compressImage } = await import(
+            "@/lib/utils/image-compression"
+          );
 
-          // 验证文件
           const validation = validateImageFile(file);
           if (!validation.valid) {
             toast.error(validation.error || "Invalid file");
             return;
           }
 
-          toast.loading("Processing image...", { id: "image-process" });
+          toast.loading("Compressing image...", { id: "image-process" });
 
-          // 转换为 base64，先不上传
-          const dataUrl = await fileToDataUrl(file);
-          setImage(dataUrl);
+          const compressed = await compressImage(file, 2, 1920, 0.8);
+          setImage(compressed);
 
           toast.success("Image ready", { id: "image-process" });
-        } catch {
+        } catch (error) {
+          console.error("Image compression error:", error);
           toast.error("Failed to process image", { id: "image-process" });
         }
       },
@@ -101,15 +103,19 @@ const SharedChatFooter = memo(
           return;
         }
 
-        // 如果有图片且是 base64 格式，先上传到 Cloudinary
         let imageUrl = image;
         if (image?.startsWith("data:")) {
           setIsUploadingImage(true);
           try {
             const { data } = await API.post("/upload", { file: image });
             imageUrl = data.url;
-          } catch {
-            toast.error("Failed to upload image, using fallback");
+          } catch (error) {
+            console.error("Failed to send message:", error);
+            toast.error(
+              "Failed to upload image. Please check your connection and try again.",
+            );
+            setIsUploadingImage(false);
+            return;
           } finally {
             setIsUploadingImage(false);
           }
