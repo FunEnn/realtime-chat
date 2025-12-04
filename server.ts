@@ -10,34 +10,53 @@ const port = Number.parseInt(process.env.PORT || "3000", 10);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
-app.prepare().then(() => {
-  const httpServer = createServer(async (req, res) => {
-    try {
-      const parsedUrl = parse(req.url || "/", true);
-      await handle(req, res, parsedUrl);
-    } catch (err) {
-      console.error("Error occurred handling request:", err);
-      res.statusCode = 500;
-      res.end("Internal server error");
-    }
-  });
+app
+  .prepare()
+  .then(() => {
+    const httpServer = createServer(async (req, res) => {
+      try {
+        // 健康检查端点 - 让 Render 知道服务已就绪
+        if (req.url === "/health" || req.url === "/api/health") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              status: "ok",
+              timestamp: new Date().toISOString(),
+            }),
+          );
+          return;
+        }
 
-  // 初始化 Socket.IO
-  const socketIO = initializeSocket(httpServer);
-  console.log(
-    "[Server] Socket.IO initialized:",
-    socketIO ? "SUCCESS" : "FAILED",
-  );
-
-  httpServer
-    .once("error", (err) => {
-      console.error("Server error:", err);
-      process.exit(1);
-    })
-    .listen(port, () => {
-      console.log(
-        `> Server ready on http://${hostname}:${port} (${dev ? "development" : "production"})`,
-      );
-      console.log(`> Socket.IO ready on path: /api/socket/io`);
+        const parsedUrl = parse(req.url || "/", true);
+        await handle(req, res, parsedUrl);
+      } catch (err) {
+        console.error("Error occurred handling request:", err);
+        res.statusCode = 500;
+        res.end("Internal server error");
+      }
     });
-});
+
+    // 初始化 Socket.IO
+    const socketIO = initializeSocket(httpServer);
+    console.log(
+      "[Server] Socket.IO initialized:",
+      socketIO ? "SUCCESS" : "FAILED",
+    );
+
+    httpServer
+      .once("error", (err) => {
+        console.error("Server error:", err);
+        process.exit(1);
+      })
+      .listen(port, () => {
+        console.log(
+          `> Server ready on http://${hostname}:${port} (${dev ? "development" : "production"})`,
+        );
+        console.log(`> Socket.IO ready on path: /api/socket/io`);
+        console.log(`> Health check: /health`);
+      });
+  })
+  .catch((err) => {
+    console.error("Failed to start server:", err);
+    process.exit(1);
+  });
