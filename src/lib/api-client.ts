@@ -5,14 +5,12 @@ import axios, {
 } from "axios";
 import { toast } from "sonner";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
-
 interface RetryConfig extends InternalAxiosRequestConfig {
   _retryCount?: number;
 }
 
 const API = axios.create({
-  baseURL: `${API_BASE_URL}/api` || "/api",
+  baseURL: "/api",
   timeout: 30000,
   withCredentials: true,
   headers: {
