@@ -32,7 +32,7 @@ const AsideBar = () => {
 
   if (!mounted) {
     return (
-      <aside className="top-0 fixed inset-y-0 w-14 md:w-16 left-0 z-9999 h-svh bg-primary shadow-sm">
+      <aside className="top-0 fixed inset-y-0 w-14 md:w-16 left-0 z-40 h-svh bg-primary shadow-sm">
         <div className="w-full h-full px-1.5 md:px-2 pt-3 pb-4 md:pb-6 flex flex-col items-center justify-between">
           <Link href="/chat">
             <Logo showText={false} />
@@ -43,7 +43,7 @@ const AsideBar = () => {
   }
 
   return (
-    <aside className="top-0 fixed inset-y-0 w-14 md:w-16 left-0 z-9999 h-svh bg-primary shadow-sm">
+    <aside className="top-0 fixed inset-y-0 w-14 md:w-16 left-0 z-40 h-svh bg-primary shadow-sm">
       <div className="w-full h-full px-1.5 md:px-2 pt-3 pb-4 md:pb-6 flex flex-col items-center justify-between">
         <Link href="/chat">
           <Logo showText={false} />
@@ -73,7 +73,7 @@ const AsideBar = () => {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="w-56 rounded-lg z-99999"
+              className="w-56 rounded-lg"
               align="end"
               side="right"
             >
