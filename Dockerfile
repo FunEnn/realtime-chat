@@ -1,5 +1,7 @@
 FROM node:20-alpine AS base
 
+RUN apk add --no-cache openssl
+
 FROM base AS deps
 
 WORKDIR /app
@@ -19,6 +21,12 @@ COPY . .
 RUN npx prisma generate
 
 ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=placeholder_for_build
+ENV NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+ENV NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/chat
+ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/chat
+
 RUN npm run build
 
 FROM base AS runner
