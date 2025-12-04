@@ -4,7 +4,8 @@ import next from "next";
 import { initializeSocket } from "./src/lib/socket/socket-server";
 
 const dev = process.env.NODE_ENV !== "production";
-const hostname = process.env.HOSTNAME || "localhost";
+// 生产环境绑定到 0.0.0.0，开发环境使用 localhost
+const hostname = dev ? "localhost" : "0.0.0.0";
 const port = Number.parseInt(process.env.PORT || "3000", 10);
 
 const app = next({ dev, hostname, port });
@@ -48,12 +49,13 @@ app
         console.error("Server error:", err);
         process.exit(1);
       })
-      .listen(port, () => {
+      .listen(port, hostname, () => {
         console.log(
           `> Server ready on http://${hostname}:${port} (${dev ? "development" : "production"})`,
         );
         console.log(`> Socket.IO ready on path: /api/socket/io`);
         console.log(`> Health check: /health`);
+        console.log(`> Listening on ${hostname}:${port}`);
       });
   })
   .catch((err) => {
