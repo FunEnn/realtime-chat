@@ -7,7 +7,7 @@ export default function SignInPage() {
       <AnimeBackground />
       <div className="relative z-10">
         <SignIn
-          fallbackRedirectUrl="/"
+          forceRedirectUrl="/chat"
           appearance={{
             elements: {
               rootBox: "mx-auto",
