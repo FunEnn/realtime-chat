@@ -22,7 +22,6 @@ export default async function ChatLayout({
 
   let user = await userRepository.findUserByClerkId(userId);
 
-  // 如果用户不存在，尝试从 Clerk 同步创建用户
   if (!user) {
     try {
       const { clerkClient } = await import("@clerk/nextjs/server");
@@ -46,11 +45,8 @@ export default async function ChatLayout({
 
   const chats = await chatRepository.findChatsByUserId(user.id);
   const allUsers = await userRepository.getAllUsers();
-
-  // 过滤掉当前用户（不能和自己聊天）
   const otherUsers = allUsers.filter((u) => u.id !== user.id);
 
-  // 转换为客户端期望的类型
   const chatTypes = mapChatsToChatTypes(chats);
   const userTypes = mapUsersToUserTypes(otherUsers);
   const currentUserType = mapUserToUserType(user);

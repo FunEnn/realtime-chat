@@ -4,7 +4,6 @@ import next from "next";
 import { initializeSocket } from "./src/lib/socket/socket-server";
 
 const dev = process.env.NODE_ENV !== "production";
-// 生产环境绑定到 0.0.0.0，开发环境使用 localhost
 const hostname = dev ? "localhost" : "0.0.0.0";
 const port = Number.parseInt(process.env.PORT || "3000", 10);
 
@@ -16,7 +15,6 @@ app
   .then(() => {
     const httpServer = createServer(async (req, res) => {
       try {
-        // 健康检查端点 - 让 Render 知道服务已就绪
         if (req.url === "/health" || req.url === "/api/health") {
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(
@@ -37,12 +35,7 @@ app
       }
     });
 
-    // 初始化 Socket.IO
-    const socketIO = initializeSocket(httpServer);
-    console.log(
-      "[Server] Socket.IO initialized:",
-      socketIO ? "SUCCESS" : "FAILED",
-    );
+    initializeSocket(httpServer);
 
     httpServer
       .once("error", (err) => {
@@ -50,12 +43,7 @@ app
         process.exit(1);
       })
       .listen(port, hostname, () => {
-        console.log(
-          `> Server ready on http://${hostname}:${port} (${dev ? "development" : "production"})`,
-        );
-        console.log(`> Socket.IO ready on path: /api/socket/io`);
-        console.log(`> Health check: /health`);
-        console.log(`> Listening on ${hostname}:${port}`);
+        console.log(`> Ready on http://${hostname}:${port}`);
       });
   })
   .catch((err) => {

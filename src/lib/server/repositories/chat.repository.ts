@@ -36,12 +36,14 @@ export async function findChatsByUserId(userId: string) {
     },
   });
 
-  return chatMembers.map((chatMember) => ({
-    ...chatMember.chat,
-    unreadCount: chatMember.unreadCount,
-    lastReadAt: chatMember.lastReadAt,
-    lastMessage: chatMember.chat.messages[0] || null,
-  }));
+  return chatMembers
+    .filter((chatMember) => chatMember.chat !== null)
+    .map((chatMember) => ({
+      ...chatMember.chat!,
+      unreadCount: chatMember.unreadCount,
+      lastReadAt: chatMember.lastReadAt,
+      lastMessage: chatMember.chat?.messages[0] || null,
+    }));
 }
 
 /**
