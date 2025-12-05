@@ -40,6 +40,7 @@ export default async function SingleChatPage({
   }
 
   const { messages } = await messageRepository.findMessagesByChatId(chatId);
+  const allUsers = await userRepository.getAllUsers();
 
   const chatType = mapChatToChatType(chat);
   const validMessages = messages.filter(
@@ -54,6 +55,7 @@ export default async function SingleChatPage({
       initialMessages={messageTypes}
       chatId={chatId}
       currentUserId={user.id}
+      allUsers={allUsers}
     />
   );
 }

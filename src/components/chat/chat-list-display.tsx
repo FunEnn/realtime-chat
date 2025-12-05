@@ -70,11 +70,11 @@ export default function ChatListDisplay({
   );
 
   return (
-    <div className="w-full lg:w-95 border-r bg-sidebar h-svh flex flex-col">
+    <div className="w-full lg:w-95 border-r bg-sidebar h-svh flex flex-col shadow-sm">
       <ChatListHeader onSearch={setSearchQuery} users={users} />
 
       <div className="flex-1 overflow-y-auto">
-        <div className="px-1.5 md:px-2 pb-10 pt-1">
+        <div className="px-2 md:px-3 pb-10 pt-2">
           <div>
             {privateChats.length === 0 && groupChats.length === 0 && (
               <div className="flex items-center justify-center p-4">

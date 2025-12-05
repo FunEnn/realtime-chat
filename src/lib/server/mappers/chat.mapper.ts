@@ -22,6 +22,7 @@ type PrismaMessage = {
   image: string | null;
   replyToId: string | null;
   sender?: PrismaUser & { isAdmin: boolean };
+  replyTo?: PrismaMessage | null;
 };
 
 type PrismaChatMember = {
@@ -82,6 +83,24 @@ export function mapMessageToMessageType(
     throw new Error("Message sender is required");
   }
 
+  // 递归处理 replyTo 消息
+  let replyTo: MessageWithSender | null = null;
+  if (message.replyTo?.sender) {
+    replyTo = {
+      id: message.replyTo.id,
+      chatId: message.replyTo.chatId,
+      senderId: message.replyTo.senderId,
+      content: message.replyTo.content ?? null,
+      image: message.replyTo.image ?? null,
+      replyToId: message.replyTo.replyToId,
+      isSystemMessage: message.replyTo.isSystemMessage ?? false,
+      sender: mapUserToUserType(message.replyTo.sender),
+      replyTo: null, // 只处理一层引用，避免无限递归
+      createdAt: message.replyTo.createdAt,
+      updatedAt: message.replyTo.updatedAt,
+    };
+  }
+
   const mappedMessage: MessageWithSender = {
     id: message.id,
     chatId: message.chatId,
@@ -89,8 +108,9 @@ export function mapMessageToMessageType(
     content: message.content ?? null,
     image: message.image ?? null,
     replyToId: message.replyToId,
+    isSystemMessage: message.isSystemMessage ?? false,
     sender: mapUserToUserType(message.sender),
-    replyTo: null,
+    replyTo,
     createdAt: message.createdAt,
     updatedAt: message.updatedAt,
   };

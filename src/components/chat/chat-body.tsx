@@ -28,7 +28,7 @@ const ChatBody = memo(({ messages, onReply, currentUserId }: ChatBodyProps) => {
   }, [messages]);
 
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col px-3 py-2">
+    <div className="w-full max-w-6xl mx-auto flex flex-col px-4 md:px-6 py-3">
       {messages
         .filter((message) => {
           if (!message || typeof message !== "object" || !message.id) {

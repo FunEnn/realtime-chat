@@ -63,8 +63,8 @@ const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full flex items-center gap-2 p-1.5 md:p-2 rounded-sm hover:bg-sidebar-accent transition-colors text-left relative",
-        pathname.includes(chat.id) && "bg-sidebar-accent!",
+        "w-full flex items-center gap-2.5 md:gap-3 p-2.5 md:p-3 rounded-xl hover:bg-sidebar-accent hover:shadow-md transition-all duration-200 text-left relative",
+        pathname.includes(chat.id) && "bg-sidebar-accent! shadow-md",
       )}
     >
       <div className="relative">
@@ -73,10 +73,10 @@ const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
           src={avatar}
           isGroup={isGroup}
           isOnline={isOnline}
-          size="w-10 h-10 md:w-11 md:h-11"
+          size="w-11 h-11 md:w-12 md:h-12"
         />
         {hasUnread && (
-          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-semibold text-white bg-red-500 rounded-full border-2 border-background">
+          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-[20px] px-1 text-[10px] font-semibold text-white bg-red-500 rounded-full border-2 border-background shadow-md">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}

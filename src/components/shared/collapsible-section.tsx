@@ -22,10 +22,10 @@ export const CollapsibleSection = memo(
         <button
           type="button"
           onClick={onToggle}
-          className="w-full flex items-center gap-1.5 md:gap-2 px-1.5 md:px-2 py-1.5 hover:bg-sidebar-accent rounded transition-colors"
+          className="w-full flex items-center gap-2 md:gap-2.5 px-2 md:px-2.5 py-2 hover:bg-sidebar-accent rounded-lg transition-all duration-200 hover:shadow-sm"
         >
           <ChevronRight
-            className={`w-3.5 h-3.5 md:w-4 md:h-4 text-muted-foreground transition-transform duration-200 ${
+            className={`w-4 h-4 md:w-4 md:h-4 text-muted-foreground transition-transform duration-300 ${
               isExpanded ? "rotate-90" : ""
             }`}
           />
@@ -38,7 +38,7 @@ export const CollapsibleSection = memo(
             isExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
           }`}
         >
-          <div className="mt-1">{children}</div>
+          <div className="mt-1.5">{children}</div>
         </div>
       </div>
     );

@@ -11,6 +11,7 @@ import type {
   ChatWithDetails,
   MessageWithSender,
   OptimisticMessage,
+  User,
 } from "@/types";
 
 // Extend Window interface to include custom properties
@@ -25,6 +26,7 @@ interface SingleChatClientProps {
   initialMessages: MessageWithSender[];
   chatId: string;
   currentUserId: string;
+  allUsers?: User[];
 }
 
 export default function SingleChatClient({
@@ -32,6 +34,7 @@ export default function SingleChatClient({
   initialMessages,
   chatId,
   currentUserId,
+  allUsers = [],
 }: SingleChatClientProps) {
   const [messages, setMessages] =
     useState<MessageWithSender[]>(initialMessages);
@@ -59,6 +62,7 @@ export default function SingleChatClient({
         },
         replyToId: null,
         replyTo: null,
+        isSystemMessage: false,
         createdAt: new Date(),
         updatedAt: new Date(),
         _optimistic: true,
@@ -168,7 +172,11 @@ export default function SingleChatClient({
       className="relative h-svh flex flex-col animate-slide-in-left lg:animate-none"
       data-chat-container
     >
-      <ChatHeader chat={initialChat} currentUserId={currentUserId} />
+      <ChatHeader
+        chat={initialChat}
+        currentUserId={currentUserId}
+        allUsers={allUsers}
+      />
 
       <div className="flex-1 overflow-y-auto bg-background">
         {messages.length === 0 ? (

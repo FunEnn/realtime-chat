@@ -61,7 +61,12 @@ NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=your_preset
 docker-compose up -d
 ```
 
-### 4. 运行doc文件夹下的SQL文件
+### 4. 构建数据库表
+
+```bash
+npx prisma migrate dev --name realtime-chat-db-init
+npx prisma generate
+```
 
 ### 5. 运行项目
 

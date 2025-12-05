@@ -101,6 +101,7 @@ export default function PublicRoomClient({
         updatedAt: new Date(),
       },
       replyToId: null,
+      isSystemMessage: false,
       createdAt: new Date(),
       updatedAt: new Date(),
       _optimistic: true,

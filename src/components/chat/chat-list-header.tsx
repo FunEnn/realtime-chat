@@ -19,8 +19,8 @@ const ChatListHeader = ({ onSearch, users }: ChatListHeaderProps) => {
   const { onlineUsers, isConnected } = useSocket();
 
   return (
-    <div className="px-2 md:px-3 py-2.5 md:py-3 border-b border-border">
-      <div className="flex items-center justify-between mb-2 md:mb-3">
+    <div className="px-3 md:px-4 py-3 md:py-4 border-b border-border">
+      <div className="flex items-center justify-between mb-3 md:mb-4">
         <h1 className="text-lg md:text-xl font-semibold">
           Chat
           <span className="text-xs ml-2 text-muted-foreground">
@@ -32,14 +32,14 @@ const ChatListHeader = ({ onSearch, users }: ChatListHeaderProps) => {
         </div>
       </div>
       <div>
-        <InputGroup className="bg-background text-xs md:text-sm">
+        <InputGroup className="bg-background text-xs md:text-sm shadow-sm">
           <InputGroupInput
             placeholder="Search..."
             onChange={(e) => onSearch(e.target.value)}
-            className="h-9 md:h-10"
+            className="h-10 md:h-11 rounded-xl"
           />
           <InputGroupAddon>
-            <Search className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
+            <Search className="h-4 w-4 md:h-4 md:w-4 text-muted-foreground" />
           </InputGroupAddon>
         </InputGroup>
       </div>

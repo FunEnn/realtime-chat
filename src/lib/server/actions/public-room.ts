@@ -280,20 +280,17 @@ export async function joinPublicRoom(roomId: string): Promise<ApiResponse> {
       emitPublicRoomUpdate(roomId, updatedRoom);
     }
 
-    // 发送系统消息通知其他用户
-    const systemMessage = {
-      id: `system-${Date.now()}`,
+    // 创建并保存系统消息通知其他用户
+    const systemMessage = await messageRepository.createRoomMessage({
+      room: { connect: { id: roomId } },
+      sender: { connect: { id: user.id } },
       content: `${user.name || "Someone"} joined the room`,
-      chatId: roomId,
-      senderId: user.id,
-      sender: user,
       image: null,
       replyToId: null,
-      replyTo: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
       isSystemMessage: true,
-    };
+    });
+
+    // 实时推送系统消息
     emitNewMessageToChatRoom(user.id, roomId, systemMessage);
 
     revalidatePath(`/chat/public-room/${roomId}`);
@@ -330,20 +327,17 @@ export async function leavePublicRoom(roomId: string): Promise<ApiResponse> {
       emitPublicRoomUpdate(roomId, room);
     }
 
-    // 发送系统消息通知其他用户
-    const systemMessage = {
-      id: `system-${Date.now()}`,
+    // 创建并保存系统消息通知其他用户
+    const systemMessage = await messageRepository.createRoomMessage({
+      room: { connect: { id: roomId } },
+      sender: { connect: { id: user.id } },
       content: `${user.name || "Someone"} left the room`,
-      chatId: roomId,
-      senderId: user.id,
-      sender: user,
       image: null,
       replyToId: null,
-      replyTo: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
       isSystemMessage: true,
-    };
+    });
+
+    // 实时推送系统消息
     emitNewMessageToChatRoom(user.id, roomId, systemMessage);
 
     revalidatePath("/chat");

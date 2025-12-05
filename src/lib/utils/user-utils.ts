@@ -31,6 +31,7 @@ export const getOtherUserAndGroup = (
       avatar: "",
       isGroup: false,
       isOnline: false,
+      otherUser: undefined,
     };
   }
 
@@ -77,6 +78,7 @@ export const getOtherUserAndGroup = (
       isOnline: false,
       onlineCount,
       totalMembers,
+      otherUser: undefined,
     };
   }
 
@@ -100,6 +102,7 @@ export const getOtherUserAndGroup = (
       isGroup,
       onlineCount,
       totalMembers,
+      otherUser: undefined,
     };
   }
 
@@ -110,6 +113,7 @@ export const getOtherUserAndGroup = (
       avatar: "",
       isGroup: false,
       isOnline: false,
+      otherUser: undefined,
     };
   }
 
@@ -120,6 +124,7 @@ export const getOtherUserAndGroup = (
       avatar: "",
       isGroup: false,
       isOnline: false,
+      otherUser: undefined,
     };
   }
 
@@ -132,6 +137,7 @@ export const getOtherUserAndGroup = (
     avatar: other?.avatar || "",
     isGroup: false,
     isOnline,
+    otherUser: other,
   };
 };
 

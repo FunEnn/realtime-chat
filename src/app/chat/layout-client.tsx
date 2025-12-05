@@ -202,7 +202,9 @@ export default function ChatLayoutClient({
       <div
         className={cn(
           "h-full flex",
-          chatId ? "ml-0 lg:ml-14" : "ml-14 md:ml-16 lg:ml-14",
+          chatId
+            ? "ml-0 lg:ml-16 lg:xl:ml-20"
+            : "ml-16 md:ml-20 lg:ml-16 lg:xl:ml-20",
         )}
       >
         <div

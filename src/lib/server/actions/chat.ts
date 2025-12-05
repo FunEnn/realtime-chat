@@ -183,6 +183,66 @@ export async function deleteChat(chatId: string): Promise<ApiResponse> {
 }
 
 /**
+ * 离开群聊
+ */
+export async function leaveChat(chatId: string): Promise<ApiResponse> {
+  try {
+    const { userId: clerkId } = await auth();
+    if (!clerkId) throw new Error("Unauthorized");
+
+    const user = await userRepository.findUserByClerkId(clerkId);
+    if (!user) throw new Error("User not found");
+
+    // 获取聊天信息
+    const chat = await chatRepository.findChatById(chatId);
+    if (!chat) throw new Error("Chat not found");
+
+    // 验证是否为群聊
+    if (!chat.isGroup) {
+      throw createError.forbidden("Cannot leave a private chat");
+    }
+
+    // 验证是否为成员
+    const isMember = await chatRepository.isUserInChat(chatId, user.id);
+    if (!isMember) {
+      throw createError.forbidden("You are not a member of this chat");
+    }
+
+    // 移除成员
+    await chatRepository.removeChatMember(chatId, user.id);
+
+    // 创建并保存系统消息通知群组
+    const systemMessage = await messageRepository.createChatMessage({
+      chat: { connect: { id: chatId } },
+      sender: { connect: { id: user.id } },
+      content: `${user.name || "Someone"} left the group`,
+      image: null,
+      replyToId: null,
+      isSystemMessage: true,
+    });
+
+    // 实时推送系统消息
+    emitNewMessageToChatRoom(user.id, chatId, systemMessage);
+
+    // 通知所有成员群信息更新
+    const updatedChat = await chatRepository.findChatById(chatId);
+    if (updatedChat) {
+      const participantIds = await chatRepository.getChatParticipantIds(chatId);
+      await emitChatInfoUpdatedToParticipants(participantIds, updatedChat);
+    }
+
+    // 通知离开的用户聊天已删除（从他的列表中移除）
+    emitChatDeletedToParticipants([user.id], chatId);
+
+    revalidatePath("/chat");
+
+    return createSuccessResponse(null, "Left group successfully");
+  } catch (error) {
+    return handleServerActionError(error);
+  }
+}
+
+/**
  * 标记聊天为已读
  */
 export async function markChatAsRead(chatId: string): Promise<ApiResponse> {
@@ -265,6 +325,10 @@ export async function createChat(input: CreateChatInput): Promise<ApiResponse> {
       memberIds,
     );
 
+    if (!chat) {
+      throw new Error("Failed to create chat");
+    }
+
     // 使用 mapper 转换为完整的 ChatWithDetails 格式
     const { mapChatToChatType } = await import("../mappers/chat.mapper");
     const mappedChat = mapChatToChatType(chat as any);
@@ -272,9 +336,120 @@ export async function createChat(input: CreateChatInput): Promise<ApiResponse> {
     // 通知相关用户
     emitNewChatToParticipants(memberIds, mappedChat);
 
+    // 如果是群聊，创建并保存系统消息
+    if (input.isGroup && chat) {
+      const systemMessage = await messageRepository.createChatMessage({
+        chat: { connect: { id: chat.id } },
+        sender: { connect: { id: user.id } },
+        content: `${user.name || "Someone"} created the group`,
+        image: null,
+        replyToId: null,
+        isSystemMessage: true,
+      });
+
+      // 实时推送系统消息
+      emitNewMessageToChatRoom(user.id, chat.id, systemMessage);
+    }
+
     revalidatePath("/chat");
 
     return createSuccessResponse(mappedChat, "Chat created successfully");
+  } catch (error) {
+    return handleServerActionError(error);
+  }
+}
+
+/**
+ * 添加用户到群聊
+ */
+export async function addUsersToChat(
+  chatId: string,
+  userIds: string[],
+): Promise<ApiResponse> {
+  try {
+    const { userId: clerkId } = await auth();
+    if (!clerkId) throw new Error("Unauthorized");
+
+    const currentUser = await userRepository.findUserByClerkId(clerkId);
+    if (!currentUser) throw new Error("User not found");
+
+    // 验证聊天是否存在
+    const chat = await chatRepository.findChatById(chatId);
+    if (!chat) throw new Error("Chat not found");
+
+    // 验证是否为群聊
+    if (!chat.isGroup) {
+      throw createError.forbidden("Cannot add users to a private chat");
+    }
+
+    // 验证当前用户是否为成员
+    const isMember = await chatRepository.isUserInChat(chatId, currentUser.id);
+    if (!isMember) {
+      throw createError.forbidden("You are not a member of this chat");
+    }
+
+    // 添加所有新成员
+    const addedMembers = [];
+    const addedUsers = [];
+    for (const userId of userIds) {
+      // 检查用户是否已经是成员
+      const isAlreadyMember = await chatRepository.isUserInChat(chatId, userId);
+      if (!isAlreadyMember) {
+        const member = await chatRepository.addChatMember(chatId, userId);
+        addedMembers.push(member);
+        // 获取用户信息用于系统消息
+        const addedUser = await userRepository.findUserById(userId);
+        if (addedUser) {
+          addedUsers.push(addedUser);
+        }
+      }
+    }
+
+    if (addedMembers.length === 0) {
+      return createSuccessResponse(
+        null,
+        "All selected users are already members",
+      );
+    }
+
+    // 获取更新后的聊天信息
+    const updatedChat = await chatRepository.findChatById(chatId);
+
+    // 发送通知给所有参与者
+    if (updatedChat) {
+      const participantIds = await chatRepository.getChatParticipantIds(chatId);
+      await emitChatInfoUpdatedToParticipants(participantIds, updatedChat);
+    }
+
+    // 为新成员创建聊天
+    for (const member of addedMembers) {
+      if (updatedChat) {
+        await emitNewChatToParticipants([member.userId], updatedChat);
+      }
+    }
+
+    // 创建并保存系统消息通知群组
+    if (addedUsers.length > 0) {
+      const userNames = addedUsers.map((u) => u.name || "Someone").join(", ");
+      const systemMessage = await messageRepository.createChatMessage({
+        chat: { connect: { id: chatId } },
+        sender: { connect: { id: currentUser.id } },
+        content: `${currentUser.name || "Someone"} invited ${userNames} to the group`,
+        image: null,
+        replyToId: null,
+        isSystemMessage: true,
+      });
+
+      // 实时推送系统消息
+      emitNewMessageToChatRoom(currentUser.id, chatId, systemMessage);
+    }
+
+    revalidatePath("/chat");
+
+    return createSuccessResponse(
+      { addedCount: addedMembers.length },
+      `Successfully added ${addedMembers.length} user${addedMembers.length > 1 ? "s" : ""} to the group`,
+    );
   } catch (error) {
     return handleServerActionError(error);
   }

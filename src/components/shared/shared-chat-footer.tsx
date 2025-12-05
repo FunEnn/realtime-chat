@@ -147,23 +147,23 @@ const SharedChatFooter = memo(
 
     return (
       <>
-        <div className="sticky bottom-0 left-0 right-0 bg-background border-t border-border py-3 md:py-4 safe-area-bottom">
+        <div className="sticky bottom-0 left-0 right-0 bg-background border-t border-border py-4 md:py-5 safe-area-bottom shadow-sm">
           {image && !isSendingMsg && (
-            <div className="max-w-6xl mx-auto px-3 md:px-8.5 mb-2">
+            <div className="max-w-6xl mx-auto px-4 md:px-8.5 mb-3">
               <div className="relative w-fit">
                 <img
                   src={image}
-                  className="object-contain h-16 bg-muted min-w-16"
+                  className="object-contain h-20 bg-muted min-w-20 rounded-xl shadow-md"
                   alt="Preview"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute top-px right-1 bg-black/50 text-white rounded-full cursor-pointer h-6 w-6"
+                  className="absolute -top-1 -right-1 bg-black/60 hover:bg-black/80 text-white rounded-full cursor-pointer h-7 w-7 shadow-md transition-all"
                   onClick={handleRemoveImage}
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
@@ -172,18 +172,18 @@ const SharedChatFooter = memo(
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
-              className="max-w-6xl px-3 md:px-8.5 mx-auto flex items-end gap-1.5 md:gap-2"
+              className="max-w-6xl px-4 md:px-8.5 mx-auto flex items-end gap-2 md:gap-3"
             >
-              <div className="flex items-center gap-1 md:gap-1.5">
+              <div className="flex items-center gap-1.5 md:gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
                   disabled={isSendingMsg || isUploadingImage}
-                  className="rounded-full h-9 w-9 md:h-10 md:w-10"
+                  className="rounded-full h-11 w-11 md:h-12 md:w-12 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
                   onClick={() => imageInputRef.current?.click()}
                 >
-                  <Paperclip className="h-4 w-4" />
+                  <Paperclip className="h-4 w-4 md:h-5 md:w-5" />
                 </Button>
                 <input
                   type="file"
@@ -205,7 +205,7 @@ const SharedChatFooter = memo(
                       {...field}
                       autoComplete="off"
                       placeholder="Type new message"
-                      className="min-h-[36px] md:min-h-[40px] bg-background text-sm md:text-base"
+                      className="min-h-[44px] md:min-h-[48px] bg-background text-sm md:text-base rounded-2xl shadow-sm focus:shadow-md transition-shadow px-5"
                     />
                   </FormItem>
                 )}
@@ -214,13 +214,13 @@ const SharedChatFooter = memo(
               <Button
                 type="submit"
                 size="icon"
-                className="rounded-lg h-9 w-9 md:h-10 md:w-10"
+                className="rounded-full h-11 w-11 md:h-12 md:w-12 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
                 disabled={isSendingMsg || isUploadingImage}
               >
                 {isUploadingImage ? (
-                  <div className="animate-spin h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full" />
+                  <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
                 ) : (
-                  <Send className="h-3.5 w-3.5" />
+                  <Send className="h-4 w-4 md:h-4.5 md:w-4.5" />
                 )}
               </Button>
             </form>

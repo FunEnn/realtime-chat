@@ -49,7 +49,7 @@ const ChatBodyMessage = memo(({ message, onReply, currentUserId }: Props) => {
   if (message.isSystemMessage) {
     return (
       <div className="flex justify-center py-2 px-4">
-        <div className="text-xs sm:text-sm text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full">
+        <div className="text-xs sm:text-sm text-muted-foreground bg-muted/50 px-4 py-2 rounded-full shadow-sm">
           {message.content}
         </div>
       </div>
@@ -62,7 +62,7 @@ const ChatBodyMessage = memo(({ message, onReply, currentUserId }: Props) => {
       : message.replyTo?.sender?.name;
 
   const containerClass = cn(
-    "group flex gap-1.5 sm:gap-2 py-2 sm:py-3 px-2 sm:px-4",
+    "group flex gap-2 sm:gap-3 py-2 sm:py-3 px-2 sm:px-4",
     isCurrentUser && "flex-row-reverse text-left",
   );
 
@@ -72,14 +72,14 @@ const ChatBodyMessage = memo(({ message, onReply, currentUserId }: Props) => {
   );
 
   const messageClass = cn(
-    "min-w-[150px] sm:min-w-[200px] px-2.5 sm:px-3 py-2 text-xs sm:text-sm break-words shadow-sm",
+    "min-w-[150px] sm:min-w-[200px] px-3 sm:px-4 py-2.5 text-xs sm:text-sm break-words shadow-md hover:shadow-lg transition-shadow duration-200",
     isCurrentUser
-      ? "bg-accent dark:bg-primary/40 rounded-tr-xl rounded-l-xl"
-      : "bg-[#F5F5F5] dark:bg-accent rounded-bl-xl rounded-r-xl",
+      ? "bg-accent dark:bg-primary/40 rounded-2xl rounded-tr-md"
+      : "bg-[#F5F5F5] dark:bg-accent rounded-2xl rounded-tl-md",
   );
 
   const replyBoxClass = cn(
-    "mb-2 p-2 text-xs rounded-md border-l-4 shadow-md !text-left",
+    "mb-2 p-2.5 text-xs rounded-lg border-l-4 shadow-sm !text-left",
     isCurrentUser
       ? "bg-primary/20 border-l-primary"
       : "bg-gray-200 dark:bg-secondary border-l-[#CC4A31]",
@@ -111,11 +111,11 @@ const ChatBodyMessage = memo(({ message, onReply, currentUserId }: Props) => {
             onTouchMove={clearLongPressTimer}
           >
             {/* Header */}
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 pb-1">
+            <div className="flex items-center gap-2 sm:gap-2.5 mb-1 pb-0.5">
               <span className="text-[11px] sm:text-xs font-semibold">
                 {senderName}
               </span>
-              <span className="text-[10px] sm:text-[11px] text-gray-700 dark:text-gray-300">
+              <span className="text-[10px] sm:text-[11px] text-gray-600 dark:text-gray-400">
                 {formatChatTime(message?.createdAt)}
               </span>
             </div>
@@ -138,7 +138,7 @@ const ChatBodyMessage = memo(({ message, onReply, currentUserId }: Props) => {
               <img
                 src={message?.image || ""}
                 alt="Message attachment"
-                className="rounded-lg max-w-[200px] sm:max-w-xs"
+                className="rounded-xl max-w-[200px] sm:max-w-xs shadow-md"
               />
             )}
 
@@ -153,8 +153,8 @@ const ChatBodyMessage = memo(({ message, onReply, currentUserId }: Props) => {
             size="icon"
             onClick={() => onReply(message)}
             className={cn(
-              "hidden md:flex transition-opacity rounded-full size-8!",
-              "md:opacity-0 md:group-hover:opacity-100",
+              "hidden md:flex transition-all duration-200 rounded-full size-9! shadow-md hover:shadow-lg",
+              "md:opacity-0 md:group-hover:opacity-100 md:group-hover:scale-110",
             )}
           >
             <Reply
