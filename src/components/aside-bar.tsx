@@ -1,6 +1,6 @@
 "use client";
 
-import { Moon, Sun } from "lucide-react";
+import { Moon, Settings, Sun } from "lucide-react";
 import Link from "next/link";
 import AvatarWithBadge from "@/components/shared/avatar-with-badge";
 import { useAuth } from "@/hooks/use-clerk-auth";
@@ -45,9 +45,21 @@ const AsideBar = () => {
   return (
     <aside className="top-0 fixed inset-y-0 w-16 md:w-20 left-0 z-40 h-svh bg-primary shadow-lg">
       <div className="w-full h-full px-2 md:px-3 pt-5 pb-5 md:pb-7 flex flex-col items-center justify-between">
-        <Link href="/chat" className="transition-transform hover:scale-105">
-          <Logo showText={false} />
-        </Link>
+        <div className="flex flex-col items-center gap-4 md:gap-5">
+          <Link href="/chat" className="transition-transform hover:scale-105">
+            <Logo showText={false} />
+          </Link>
+
+          <Link href="/chat/settings">
+            <Button
+              variant="outline"
+              size="icon"
+              className="border-0 rounded-full bg-white/10 hover:bg-white/20 hover:scale-110 h-10 w-10 md:h-12 md:w-12 transition-all duration-300 shadow-md"
+            >
+              <Settings className="h-4 w-4 md:h-5 md:w-5 text-white" />
+            </Button>
+          </Link>
+        </div>
 
         <div className="flex flex-col items-center gap-4 md:gap-5">
           <Button

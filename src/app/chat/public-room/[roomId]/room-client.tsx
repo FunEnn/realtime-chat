@@ -80,10 +80,7 @@ export default function PublicRoomClient({
   ) => {
     if (!content && !image) return null;
 
-    const optimisticMessage: RoomMessageWithSender & {
-      _optimistic: boolean;
-      _sending: boolean;
-    } = {
+    const optimisticMessage = {
       id: tempId || `temp-${Date.now()}-${Math.random()}`,
       content: content || "",
       image: image || null,
@@ -106,6 +103,9 @@ export default function PublicRoomClient({
       updatedAt: new Date(),
       _optimistic: true,
       _sending: true,
+    } as RoomMessageWithSender & {
+      _optimistic: boolean;
+      _sending: boolean;
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);

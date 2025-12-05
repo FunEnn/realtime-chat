@@ -21,6 +21,7 @@ type PrismaMessage = {
   content: string | null;
   image: string | null;
   replyToId: string | null;
+  isSystemMessage?: boolean;
   sender?: PrismaUser & { isAdmin: boolean };
   replyTo?: PrismaMessage | null;
 };

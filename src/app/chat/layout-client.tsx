@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AppWrapper from "@/components/app-wrapper";
 import AsideBar from "@/components/aside-bar";
@@ -24,8 +24,14 @@ export default function ChatLayoutClient({
   currentUser,
 }: ChatLayoutClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const chatId = useChatId();
   const { socket } = useSocket();
+
+  // 检测是否在设置页面
+  const isSettingsPage = pathname === "/chat/settings";
+  // 判断是否应该隐藏左侧栏（有 chatId 或在设置页面）
+  const shouldHideSidebar = chatId || isSettingsPage;
 
   // 过滤掉无效的聊天
   const validInitialChats = initialChats.filter((chat) => chat?.id);
@@ -192,7 +198,7 @@ export default function ChatLayoutClient({
       <div
         className={cn(
           "lg:block",
-          !mounted ? "block" : chatId ? "hidden" : "block",
+          !mounted ? "block" : shouldHideSidebar ? "hidden" : "block",
         )}
         suppressHydrationWarning
       >
@@ -202,7 +208,7 @@ export default function ChatLayoutClient({
       <div
         className={cn(
           "h-full flex",
-          chatId
+          shouldHideSidebar
             ? "ml-0 lg:ml-16 lg:xl:ml-20"
             : "ml-16 md:ml-20 lg:ml-16 lg:xl:ml-20",
         )}
@@ -210,7 +216,11 @@ export default function ChatLayoutClient({
         <div
           className={cn(
             "lg:block lg:w-auto",
-            !mounted ? "block w-full" : chatId ? "hidden" : "block w-full",
+            !mounted
+              ? "block w-full"
+              : shouldHideSidebar
+                ? "hidden"
+                : "block w-full",
           )}
           suppressHydrationWarning
         >
@@ -224,7 +234,7 @@ export default function ChatLayoutClient({
         <div
           className={cn(
             "lg:flex-1 lg:block",
-            !mounted ? "hidden" : chatId ? "block w-full" : "hidden",
+            !mounted ? "hidden" : shouldHideSidebar ? "block w-full" : "hidden",
           )}
           suppressHydrationWarning
         >
