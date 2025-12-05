@@ -341,10 +341,18 @@ export default function ChatHistoryDialog({
                                 {item.message.content}
                               </p>
                             )}
-                            {!item.message.content && !item.message.image && (
-                              <p className="text-[11px] sm:text-xs md:text-sm text-muted-foreground">
-                                📷 Photo
-                              </p>
+                            {!item.message.content && item.message.image && (
+                              <div className="flex items-center gap-1.5">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={item.message.image}
+                                  alt="Message preview"
+                                  className="h-5 w-5 object-cover rounded border border-border"
+                                />
+                                <span className="text-[11px] sm:text-xs md:text-sm text-muted-foreground">
+                                  图片消息
+                                </span>
+                              </div>
                             )}
                             {item.message.replyTo &&
                               (item.message.replyTo as any).sender && (
@@ -390,10 +398,26 @@ export default function ChatHistoryDialog({
                             )}
                           </div>
                           {item.lastMessage && (
-                            <p className="text-[11px] sm:text-xs md:text-sm text-muted-foreground truncate">
-                              {item.lastMessage.sender?.name}:{" "}
-                              {item.lastMessage.content || "📷 Photo"}
-                            </p>
+                            <div className="text-[11px] sm:text-xs md:text-sm text-muted-foreground flex items-center gap-1.5">
+                              <span className="truncate">
+                                {item.lastMessage.sender?.name}:{" "}
+                                {item.lastMessage.content}
+                              </span>
+                              {!item.lastMessage.content &&
+                                item.lastMessage.image && (
+                                  <>
+                                    <span>
+                                      {item.lastMessage.sender?.name}:
+                                    </span>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={item.lastMessage.image}
+                                      alt="Message preview"
+                                      className="h-4 w-4 object-cover rounded border border-border"
+                                    />
+                                  </>
+                                )}
+                            </div>
                           )}
                         </button>
                       );

@@ -33,7 +33,7 @@ const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
     ? formatChatTime(lastMessage?.updatedAt || createdAt)
     : "";
 
-  const getLastMessageText = () => {
+  const renderLastMessage = () => {
     if (!lastMessage) {
       const creatorId = getCreatorId(chat);
       return isGroup
@@ -42,7 +42,22 @@ const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
           : "You were added"
         : "Send a message";
     }
-    if (lastMessage.image) return "📷 Photo";
+
+    if (lastMessage.image) {
+      return (
+        <span className="flex items-center gap-1.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lastMessage.image}
+            alt="Message preview"
+            className="h-5 w-5 object-cover rounded border border-border"
+          />
+          {lastMessage.content && (
+            <span className="truncate">{lastMessage.content}</span>
+          )}
+        </span>
+      );
+    }
 
     if (isGroup && lastMessage.sender) {
       return `${
@@ -104,14 +119,14 @@ const ChatListItem = memo(({ chat, currentUserId, onClick }: PropsType) => {
             {formattedTime}
           </span>
         </div>
-        <p
+        <div
           className={cn(
-            "text-[10px] md:text-xs truncate -mt-px",
+            "text-[10px] md:text-xs -mt-px",
             hasUnread ? "text-foreground font-medium" : "text-muted-foreground",
           )}
         >
-          {getLastMessageText()}
-        </p>
+          {renderLastMessage()}
+        </div>
       </div>
     </button>
   );

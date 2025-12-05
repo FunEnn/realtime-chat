@@ -85,22 +85,22 @@ export default function SettingsClient({ user }: SettingsClientProps) {
   return (
     <div className="flex-1 h-full flex flex-col overflow-hidden bg-background">
       {/* Header */}
-      <div className="bg-primary px-3 sm:px-4 md:px-6 py-3 sm:py-4 flex items-center gap-2 sm:gap-3 shadow-sm">
+      <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 flex items-center gap-2 sm:gap-3 shadow-sm">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => router.back()}
           className="hover:bg-white/10 h-9 w-9 sm:h-10 sm:w-10"
         >
-          <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+          <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
         </Button>
-        <h1 className="text-base sm:text-lg md:text-xl font-semibold text-white">
-          账号设置
+        <h1 className="text-base sm:text-lg md:text-xl font-semibold ">
+          Setting
         </h1>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto py-1">
         <div className="max-w-4xl mx-auto">
           {/* User Info Section */}
           <div className="bg-card border-b">

@@ -123,23 +123,40 @@ const ChatBodyMessage = memo(({ message, onReply, currentUserId }: Props) => {
             {/* Reply To Box */}
             {message.replyTo && (
               <div className={replyBoxClass}>
-                <h5 className="font-medium text-[11px] sm:text-xs">
+                <h5 className="font-medium text-[11px] sm:text-xs mb-0.5">
                   {replySendername}
                 </h5>
-                <p className="font-normal text-muted-foreground max-w-[200px] sm:max-w-[250px] truncate text-[10px] sm:text-xs">
-                  {message?.replyTo?.content ||
-                    (message?.replyTo?.image ? "📷 Photo" : "")}
-                </p>
+                {message?.replyTo?.image ? (
+                  <div className="flex items-center gap-1.5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={message.replyTo.image}
+                      alt="Reply preview"
+                      className="h-6 w-6 sm:h-7 sm:w-7 object-cover rounded border border-border"
+                    />
+                    {message.replyTo.content && (
+                      <p className="font-normal text-muted-foreground max-w-[150px] sm:max-w-[200px] truncate text-[10px] sm:text-xs">
+                        {message.replyTo.content}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="font-normal text-muted-foreground max-w-[200px] sm:max-w-[250px] truncate text-[10px] sm:text-xs">
+                    {message?.replyTo?.content || ""}
+                  </p>
+                )}
               </div>
             )}
 
             {message?.image && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={message?.image || ""}
-                alt="Message attachment"
-                className="rounded-xl max-w-[200px] sm:max-w-xs shadow-md"
-              />
+              <a href={message.image} target="_blank" rel="noopener noreferrer">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={message.image}
+                  alt="Message attachment"
+                  className="rounded-xl max-w-[200px] sm:max-w-xs shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+                />
+              </a>
             )}
 
             {message.content && (

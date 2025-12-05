@@ -175,12 +175,12 @@ export default function PublicRoomList() {
           type="button"
           onClick={() => router.push(`/chat/public-room/${room.id}`)}
           className={cn(
-            "w-full flex items-center gap-2 p-1.5 md:p-2 rounded-sm hover:bg-sidebar-accent transition-colors text-left",
-            pathname.includes(room.id) && "bg-sidebar-accent!",
+            "w-full flex items-center gap-2.5 md:gap-3 p-2.5 md:p-3 rounded-xl hover:bg-sidebar-accent hover:shadow-md transition-all duration-200 text-left",
+            pathname.includes(room.id) && "bg-sidebar-accent! shadow-md",
           )}
         >
           <div className="relative">
-            <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
               {room.avatar ? (
                 <img
                   src={room.avatar}
@@ -188,17 +188,17 @@ export default function PublicRoomList() {
                   className="w-full h-full rounded-full object-cover"
                 />
               ) : (
-                <Users className="w-5 h-5 text-primary" />
+                <Users className="w-5 h-5 md:w-6 md:h-6 text-primary" />
               )}
             </div>
             {room.isMember ? (
               room.unreadCount && room.unreadCount > 0 ? (
-                <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-semibold text-white bg-red-500 rounded-full border-2 border-background">
+                <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[20px] h-[20px] px-1 text-[10px] font-semibold text-white bg-red-500 rounded-full border-2 border-background shadow-md">
                   {room.unreadCount > 99 ? "99+" : room.unreadCount}
                 </span>
               ) : null
             ) : (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-muted-foreground/40 rounded-full" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-muted-foreground/40 rounded-full border-2 border-background" />
             )}
           </div>
 
