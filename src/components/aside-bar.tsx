@@ -50,7 +50,7 @@ const AsideBar = () => {
             <Logo showText={false} />
           </Link>
 
-          <Link href="/chat/settings">
+          <Link href="/chat/notice">
             <Button
               variant="outline"
               size="icon"

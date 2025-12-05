@@ -11,10 +11,11 @@
 - 📝 **消息回复** - 支持回复特定消息
 - 🔔 **未读提醒** - 实时追踪未读消息数量
 
+
 ## 🛠️ 技术栈
 
 - **前端**：Next.js 16 + TypeScript + Tailwind CSS + Shadcn UI + Zustand
-- **后端**：PostgreSQL + Prisma ORM + Socket.IO + Docker
+- **后端**：PostgreSQL + Prisma ORM + Socket.IO
 - **认证**：Clerk
 - **存储**：Cloudinary
 - **工具**：Biome + Husky
@@ -64,7 +65,7 @@ docker-compose up -d
 ### 4. 构建数据库表
 
 ```bash
-npx prisma migrate dev --name realtime-chat-db-init
+npx prisma migrate dev --name realtime-chat-db
 npx prisma generate
 ```
 
@@ -75,6 +76,30 @@ pnpm dev
 ```
 
 访问 [http://localhost:3000](http://localhost:3000)
+
+## 🖼️ 界面预览
+
+### 登录页
+![首页](./public/image.png)
+
+### 聊天界面
+![聊天界面](./public/image1.png)
+
+### 创建聊天室功能
+![创建聊天室功能页面](./public/image2.png)
+
+### 群组管理
+![管理员修改聊天群头像和名称](./public/image4.png)
+
+### 成员视图
+![非管理员显示的页面](./public/image5.png)
+
+### 公共聊天室
+![公共聊天室界面](./public/image6.png)
+
+### 通知界面
+![通知界面](./public/image3.png)
+
 
 ## 🎯 核心功能
 
@@ -88,8 +113,6 @@ pnpm dev
 - **群主**：管理群组设置和成员
 - **成员**：发送消息、加入/离开聊天室
 
-### 消息系统
-- 文本和图片消息
-- 消息回复和引用
-- 历史记录查询
-- 乐观 UI 更新（发送即显示）
+## 项目部署
+通过 [Render](https://render.com/) + [Neon](https://neon.com/) + Docker 进行部署
+体验地址 https://realtime-chat-7pnc.onrender.com/

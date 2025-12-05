@@ -20,7 +20,7 @@ import {
 } from "@/lib/server/actions/user-activity";
 import type { User } from "@/types/prisma.types";
 
-interface SettingsClientProps {
+interface NoticeClientProps {
   user: User;
 }
 
@@ -44,7 +44,7 @@ interface PrivateChat {
   createdAt: Date;
 }
 
-export default function SettingsClient({ user }: SettingsClientProps) {
+export default function NoticeClient({ user }: NoticeClientProps) {
   const router = useRouter();
   const [invitations, setInvitations] = useState<GroupInvitation[]>([]);
   const [privateChats, setPrivateChats] = useState<PrivateChat[]>([]);
@@ -95,7 +95,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
           <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
         </Button>
         <h1 className="text-base sm:text-lg md:text-xl font-semibold ">
-          Setting
+          Notice
         </h1>
       </div>
 

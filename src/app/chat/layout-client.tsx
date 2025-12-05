@@ -28,10 +28,10 @@ export default function ChatLayoutClient({
   const chatId = useChatId();
   const { socket } = useSocket();
 
-  // 检测是否在设置页面
-  const isSettingsPage = pathname === "/chat/settings";
-  // 判断是否应该隐藏左侧栏（有 chatId 或在设置页面）
-  const shouldHideSidebar = chatId || isSettingsPage;
+  // 检测是否在通知页面
+  const isNoticePage = pathname === "/chat/notice";
+  // 判断是否应该隐藏左侧栏（有 chatId 或在通知页面）
+  const shouldHideSidebar = chatId || isNoticePage;
 
   // 过滤掉无效的聊天
   const validInitialChats = initialChats.filter((chat) => chat?.id);

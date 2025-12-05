@@ -228,7 +228,10 @@ export async function leaveChat(chatId: string): Promise<ApiResponse> {
     const updatedChat = await chatRepository.findChatById(chatId);
     if (updatedChat) {
       const participantIds = await chatRepository.getChatParticipantIds(chatId);
-      await emitChatInfoUpdatedToParticipants(participantIds, updatedChat);
+      // 使用 mapper 转换为完整的 ChatWithDetails 格式
+      const { mapChatToChatType } = await import("../mappers/chat.mapper");
+      const mappedChat = mapChatToChatType(updatedChat);
+      await emitChatInfoUpdatedToParticipants(participantIds, mappedChat);
     }
 
     // 通知离开的用户聊天已删除（从他的列表中移除）
@@ -418,13 +421,14 @@ export async function addUsersToChat(
     // 发送通知给所有参与者
     if (updatedChat) {
       const participantIds = await chatRepository.getChatParticipantIds(chatId);
-      await emitChatInfoUpdatedToParticipants(participantIds, updatedChat);
-    }
+      // 使用 mapper 转换为完整的 ChatWithDetails 格式
+      const { mapChatToChatType } = await import("../mappers/chat.mapper");
+      const mappedChat = mapChatToChatType(updatedChat);
+      await emitChatInfoUpdatedToParticipants(participantIds, mappedChat);
 
-    // 为新成员创建聊天
-    for (const member of addedMembers) {
-      if (updatedChat) {
-        await emitNewChatToParticipants([member.userId], updatedChat);
+      // 为新成员创建聊天
+      for (const member of addedMembers) {
+        await emitNewChatToParticipants([member.userId], mappedChat);
       }
     }
 
