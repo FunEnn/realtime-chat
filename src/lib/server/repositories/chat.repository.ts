@@ -202,12 +202,25 @@ export async function updateChat(chatId: string, data: Prisma.ChatUpdateInput) {
 }
 
 /**
- * 删除聊天
+ * 删除聊天（级联删除成员和消息）
  * @param chatId - 聊天 ID
  */
 export async function deleteChat(chatId: string) {
-  return prisma.chat.delete({
-    where: { id: chatId },
+  return prisma.$transaction(async (tx) => {
+    // 先删除聊天消息
+    await tx.message.deleteMany({
+      where: { chatId },
+    });
+
+    // 删除聊天成员
+    await tx.chatMember.deleteMany({
+      where: { chatId },
+    });
+
+    // 最后删除聊天
+    return tx.chat.delete({
+      where: { id: chatId },
+    });
   });
 }
 

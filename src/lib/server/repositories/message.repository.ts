@@ -30,12 +30,33 @@ export async function findMessagesByChatId(
     take: options?.take,
   });
 
+  // 手动获取引用的消息
+  const replyToIds = messages
+    .map((m) => m.replyToId)
+    .filter((id): id is string => !!id);
+
+  const replyToMessages =
+    replyToIds.length > 0
+      ? await prisma.message.findMany({
+          where: { id: { in: replyToIds } },
+          include: { sender: true },
+        })
+      : [];
+
+  const replyToMap = new Map(replyToMessages.map((m) => [m.id, m]));
+
+  // 组装消息数据
+  const messagesWithReply = messages.map((msg) => ({
+    ...msg,
+    replyTo: msg.replyToId ? replyToMap.get(msg.replyToId) || null : null,
+  }));
+
   const total = await prisma.message.count({
     where: { chatId },
   });
 
   return {
-    messages,
+    messages: messagesWithReply,
     total,
     hasMore: options?.take ? total > (options.skip || 0) + options.take : false,
   };
@@ -65,12 +86,33 @@ export async function findMessagesByRoomId(
     take: options?.take,
   });
 
+  // 手动获取引用的消息
+  const replyToIds = messages
+    .map((m) => m.replyToId)
+    .filter((id): id is string => !!id);
+
+  const replyToMessages =
+    replyToIds.length > 0
+      ? await prisma.roomMessage.findMany({
+          where: { id: { in: replyToIds } },
+          include: { sender: true },
+        })
+      : [];
+
+  const replyToMap = new Map(replyToMessages.map((m) => [m.id, m]));
+
+  // 组装消息数据
+  const messagesWithReply = messages.map((msg) => ({
+    ...msg,
+    replyTo: msg.replyToId ? replyToMap.get(msg.replyToId) || null : null,
+  }));
+
   const total = await prisma.roomMessage.count({
     where: { roomId },
   });
 
   return {
-    messages,
+    messages: messagesWithReply,
     total,
     hasMore: options?.take ? total > (options.skip || 0) + options.take : false,
   };
@@ -81,12 +123,31 @@ export async function findMessagesByRoomId(
  * @param messageId - 消息 ID
  */
 export async function findMessageById(messageId: string) {
-  return prisma.message.findUnique({
+  const message = await prisma.message.findUnique({
     where: { id: messageId },
     include: {
       sender: true,
     },
   });
+
+  if (!message) return null;
+
+  // 如果有引用消息，手动获取
+  if (message.replyToId) {
+    const replyTo = await prisma.message.findUnique({
+      where: { id: message.replyToId },
+      include: { sender: true },
+    });
+    return {
+      ...message,
+      replyTo,
+    };
+  }
+
+  return {
+    ...message,
+    replyTo: null,
+  };
 }
 
 /**
@@ -94,12 +155,29 @@ export async function findMessageById(messageId: string) {
  * @param data - 消息数据
  */
 export async function createChatMessage(data: Prisma.MessageCreateInput) {
-  return prisma.message.create({
+  const message = await prisma.message.create({
     data,
     include: {
       sender: true,
     },
   });
+
+  // 如果有引用消息，手动获取
+  if (message.replyToId) {
+    const replyTo = await prisma.message.findUnique({
+      where: { id: message.replyToId },
+      include: { sender: true },
+    });
+    return {
+      ...message,
+      replyTo,
+    };
+  }
+
+  return {
+    ...message,
+    replyTo: null,
+  };
 }
 
 /**
@@ -107,12 +185,29 @@ export async function createChatMessage(data: Prisma.MessageCreateInput) {
  * @param data - 消息数据
  */
 export async function createRoomMessage(data: Prisma.RoomMessageCreateInput) {
-  return prisma.roomMessage.create({
+  const message = await prisma.roomMessage.create({
     data,
     include: {
       sender: true,
     },
   });
+
+  // 如果有引用消息，手动获取
+  if (message.replyToId) {
+    const replyTo = await prisma.roomMessage.findUnique({
+      where: { id: message.replyToId },
+      include: { sender: true },
+    });
+    return {
+      ...message,
+      replyTo,
+    };
+  }
+
+  return {
+    ...message,
+    replyTo: null,
+  };
 }
 
 /**
@@ -140,7 +235,7 @@ export async function deleteRoomMessage(messageId: string) {
  * @param chatId - 聊天 ID
  */
 export async function getLatestMessage(chatId: string) {
-  return prisma.message.findFirst({
+  const message = await prisma.message.findFirst({
     where: { chatId },
     orderBy: {
       createdAt: "desc",
@@ -149,6 +244,25 @@ export async function getLatestMessage(chatId: string) {
       sender: true,
     },
   });
+
+  if (!message) return null;
+
+  // 如果有引用消息，手动获取
+  if (message.replyToId) {
+    const replyTo = await prisma.message.findUnique({
+      where: { id: message.replyToId },
+      include: { sender: true },
+    });
+    return {
+      ...message,
+      replyTo,
+    };
+  }
+
+  return {
+    ...message,
+    replyTo: null,
+  };
 }
 
 /**
@@ -156,7 +270,7 @@ export async function getLatestMessage(chatId: string) {
  * @param roomId - 聊天室 ID
  */
 export async function getLatestRoomMessage(roomId: string) {
-  return prisma.roomMessage.findFirst({
+  const message = await prisma.roomMessage.findFirst({
     where: { roomId },
     orderBy: {
       createdAt: "desc",
@@ -165,6 +279,25 @@ export async function getLatestRoomMessage(roomId: string) {
       sender: true,
     },
   });
+
+  if (!message) return null;
+
+  // 如果有引用消息，手动获取
+  if (message.replyToId) {
+    const replyTo = await prisma.roomMessage.findUnique({
+      where: { id: message.replyToId },
+      include: { sender: true },
+    });
+    return {
+      ...message,
+      replyTo,
+    };
+  }
+
+  return {
+    ...message,
+    replyTo: null,
+  };
 }
 
 /**
@@ -173,7 +306,7 @@ export async function getLatestRoomMessage(roomId: string) {
  * @param query - 搜索关键词
  */
 export async function searchMessages(chatId: string, query: string) {
-  return prisma.message.findMany({
+  const messages = await prisma.message.findMany({
     where: {
       chatId,
       content: {
@@ -189,6 +322,26 @@ export async function searchMessages(chatId: string, query: string) {
     },
     take: 50,
   });
+
+  // 手动获取引用的消息
+  const replyToIds = messages
+    .map((m) => m.replyToId)
+    .filter((id): id is string => !!id);
+
+  const replyToMessages =
+    replyToIds.length > 0
+      ? await prisma.message.findMany({
+          where: { id: { in: replyToIds } },
+          include: { sender: true },
+        })
+      : [];
+
+  const replyToMap = new Map(replyToMessages.map((m) => [m.id, m]));
+
+  return messages.map((msg) => ({
+    ...msg,
+    replyTo: msg.replyToId ? replyToMap.get(msg.replyToId) || null : null,
+  }));
 }
 
 /**
@@ -197,7 +350,7 @@ export async function searchMessages(chatId: string, query: string) {
  * @param query - 搜索关键词
  */
 export async function searchRoomMessages(roomId: string, query: string) {
-  return prisma.roomMessage.findMany({
+  const messages = await prisma.roomMessage.findMany({
     where: {
       roomId,
       content: {
@@ -213,6 +366,26 @@ export async function searchRoomMessages(roomId: string, query: string) {
     },
     take: 50,
   });
+
+  // 手动获取引用的消息
+  const replyToIds = messages
+    .map((m) => m.replyToId)
+    .filter((id): id is string => !!id);
+
+  const replyToMessages =
+    replyToIds.length > 0
+      ? await prisma.roomMessage.findMany({
+          where: { id: { in: replyToIds } },
+          include: { sender: true },
+        })
+      : [];
+
+  const replyToMap = new Map(replyToMessages.map((m) => [m.id, m]));
+
+  return messages.map((msg) => ({
+    ...msg,
+    replyTo: msg.replyToId ? replyToMap.get(msg.replyToId) || null : null,
+  }));
 }
 
 /**

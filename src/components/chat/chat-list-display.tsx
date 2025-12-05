@@ -75,71 +75,71 @@ export default function ChatListDisplay({
 
       <div className="flex-1 overflow-y-auto">
         <div className="px-1.5 md:px-2 pb-10 pt-1">
-          {privateChats.length === 0 && groupChats.length === 0 ? (
-            <div className="flex items-center justify-center p-4">
-              <p className="text-sm text-muted-foreground text-center">
-                {searchQuery ? "No chat found" : "No chats created"}
-              </p>
-            </div>
-          ) : (
-            <div>
-              <div key="private-chats-section" className="mb-4">
-                {privateChats.length > 0 && (
-                  <CollapsibleSection
-                    title="Private Chats"
-                    count={privateChats.length}
-                    isExpanded={isPrivateExpanded}
-                    onToggle={() => setIsPrivateExpanded(!isPrivateExpanded)}
-                  >
-                    <div className="space-y-1">
-                      {privateChats.map((chat) => (
-                        <ChatListItem
-                          key={chat.id}
-                          chat={chat}
-                          currentUserId={currentUser.id}
-                          onClick={() => handleChatClick(chat.id)}
-                        />
-                      ))}
-                    </div>
-                  </CollapsibleSection>
-                )}
+          <div>
+            {privateChats.length === 0 && groupChats.length === 0 && (
+              <div className="flex items-center justify-center p-4">
+                <p className="text-sm text-muted-foreground text-center">
+                  {searchQuery ? "No chat found" : "No chats created"}
+                </p>
               </div>
+            )}
 
-              <div key="group-chats-section">
-                {groupChats.length > 0 && (
-                  <CollapsibleSection
-                    title="Group Chats"
-                    count={groupChats.length}
-                    isExpanded={isGroupExpanded}
-                    onToggle={() => setIsGroupExpanded(!isGroupExpanded)}
-                  >
-                    <div className="space-y-1">
-                      {groupChats.map((chat) => (
-                        <ChatListItem
-                          key={chat.id}
-                          chat={chat}
-                          currentUserId={currentUser.id}
-                          onClick={() => handleChatClick(chat.id)}
-                        />
-                      ))}
-                    </div>
-                  </CollapsibleSection>
-                )}
-              </div>
-
-              <div key="public-rooms-section" className="mt-2">
+            <div key="private-chats-section" className="mb-4">
+              {privateChats.length > 0 && (
                 <CollapsibleSection
-                  title="Public Rooms"
-                  isExpanded={isPublicRoomsExpanded}
-                  onToggle={() =>
-                    setIsPublicRoomsExpanded(!isPublicRoomsExpanded)
-                  }
+                  title="Private Chats"
+                  count={privateChats.length}
+                  isExpanded={isPrivateExpanded}
+                  onToggle={() => setIsPrivateExpanded(!isPrivateExpanded)}
                 >
-                  <PublicRoomList />
+                  <div className="space-y-1">
+                    {privateChats.map((chat) => (
+                      <ChatListItem
+                        key={chat.id}
+                        chat={chat}
+                        currentUserId={currentUser.id}
+                        onClick={() => handleChatClick(chat.id)}
+                      />
+                    ))}
+                  </div>
                 </CollapsibleSection>
-              </div>
+              )}
             </div>
-          )}
+
+            <div key="group-chats-section">
+              {groupChats.length > 0 && (
+                <CollapsibleSection
+                  title="Group Chats"
+                  count={groupChats.length}
+                  isExpanded={isGroupExpanded}
+                  onToggle={() => setIsGroupExpanded(!isGroupExpanded)}
+                >
+                  <div className="space-y-1">
+                    {groupChats.map((chat) => (
+                      <ChatListItem
+                        key={chat.id}
+                        chat={chat}
+                        currentUserId={currentUser.id}
+                        onClick={() => handleChatClick(chat.id)}
+                      />
+                    ))}
+                  </div>
+                </CollapsibleSection>
+              )}
+            </div>
+
+            <div key="public-rooms-section" className="mt-2">
+              <CollapsibleSection
+                title="Public Rooms"
+                isExpanded={isPublicRoomsExpanded}
+                onToggle={() =>
+                  setIsPublicRoomsExpanded(!isPublicRoomsExpanded)
+                }
+              >
+                <PublicRoomList />
+              </CollapsibleSection>
+            </div>
+          </div>
         </div>
       </div>
     </div>

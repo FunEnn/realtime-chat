@@ -2,7 +2,7 @@
 
 import { Pencil, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { toast } from "sonner";
 import { ImageCropDialog } from "@/components/shared/image-crop-dialog";
 import { Button } from "@/components/ui/button";
@@ -18,10 +18,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/use-clerk-auth";
 import { useDeleteConfirmation } from "@/hooks/use-delete-confirmation";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import {
-  checkIsAdmin,
   deletePublicRoom,
   updatePublicRoom,
 } from "@/lib/server/actions/public-room";
@@ -43,12 +43,11 @@ export const PublicRoomSettingsDialog = memo(
     trigger,
   }: PublicRoomSettingsDialogProps) => {
     const router = useRouter();
+    const { user } = useAuth();
     const [open, setOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [name, setName] = useState(currentRoomName);
     const [description, setDescription] = useState(currentDescription || "");
-    const [isAdmin, setIsAdmin] = useState(false);
-    const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
     const {
       avatar,
@@ -69,20 +68,6 @@ export const PublicRoomSettingsDialog = memo(
       showConfirmDialog,
       hideConfirmDialog,
     } = useDeleteConfirmation();
-
-    useEffect(() => {
-      const checkAdmin = async () => {
-        setIsCheckingAdmin(true);
-        try {
-          const result = await checkIsAdmin();
-          setIsAdmin(result.isAdmin);
-        } finally {
-          setIsCheckingAdmin(false);
-        }
-      };
-
-      checkAdmin();
-    }, []);
 
     const handleSave = async () => {
       if (!name.trim()) {
@@ -160,11 +145,8 @@ export const PublicRoomSettingsDialog = memo(
       }
     };
 
-    if (isCheckingAdmin) {
-      return null;
-    }
-
-    if (!isAdmin) {
+    // 只有管理员才能编辑公共聊天室
+    if (!user?.isAdmin) {
       return null;
     }
 

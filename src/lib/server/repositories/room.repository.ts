@@ -115,12 +115,25 @@ export async function updatePublicRoom(
 }
 
 /**
- * 删除公共聊天室
+ * 删除公共聊天室（级联删除成员和消息）
  * @param roomId - 聊天室 ID
  */
 export async function deletePublicRoom(roomId: string) {
-  return prisma.publicRoom.delete({
-    where: { id: roomId },
+  return prisma.$transaction(async (tx) => {
+    // 先删除聊天室消息
+    await tx.roomMessage.deleteMany({
+      where: { roomId },
+    });
+
+    // 删除聊天室成员
+    await tx.roomMember.deleteMany({
+      where: { roomId },
+    });
+
+    // 最后删除聊天室
+    return tx.publicRoom.delete({
+      where: { id: roomId },
+    });
   });
 }
 

@@ -2,7 +2,7 @@
 
 import { Users } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { ImageCropDialog } from "@/components/shared/image-crop-dialog";
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/use-clerk-auth";
 import { useImageUpload } from "@/hooks/use-image-upload";
-import {
-  checkIsAdmin,
-  createPublicRoom as createPublicRoomAction,
-} from "@/lib/server/actions/public-room";
+import { createPublicRoom as createPublicRoomAction } from "@/lib/server/actions/public-room";
 
 interface CreatePublicRoomDialogProps {
   trigger?: React.ReactNode;
@@ -33,12 +31,11 @@ export default function CreatePublicRoomDialog({
   trigger,
 }: CreatePublicRoomDialogProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
   const {
     avatar,
@@ -51,20 +48,6 @@ export default function CreatePublicRoomDialog({
     uploadToCloudinary,
     resetAvatar,
   } = useImageUpload();
-
-  useEffect(() => {
-    const checkAdmin = async () => {
-      setIsCheckingAdmin(true);
-      try {
-        const result = await checkIsAdmin();
-        setIsAdmin(result.isAdmin);
-      } finally {
-        setIsCheckingAdmin(false);
-      }
-    };
-
-    checkAdmin();
-  }, []);
 
   const resetForm = () => {
     setName("");
@@ -122,11 +105,8 @@ export default function CreatePublicRoomDialog({
     }
   };
 
-  if (isCheckingAdmin) {
-    return null;
-  }
-
-  if (!isAdmin) {
+  // 只有管理员才能创建公共聊天室
+  if (!user?.isAdmin) {
     return null;
   }
 

@@ -36,6 +36,7 @@ export const NewChatPopover = memo(
     const [isOpen, setIsOpen] = useState(false);
     const [isGroupMode, setIsGroupMode] = useState(false);
     const [groupName, setGroupName] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
     const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
     const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
 
@@ -68,9 +69,20 @@ export const NewChatPopover = memo(
     const resetState = () => {
       setIsGroupMode(false);
       setGroupName("");
+      setSearchQuery("");
       resetAvatar();
       setSelectedUsers([]);
     };
+
+    // 过滤用户列表
+    const filteredUsers = users.filter((user) => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        user.name?.toLowerCase().includes(query) ||
+        user.email?.toLowerCase().includes(query)
+      );
+    });
 
     const handleOpenChange = (open: boolean) => {
       // 如果裁剪对话框打开中，不关闭Popover
@@ -218,8 +230,8 @@ export const NewChatPopover = memo(
                 ) : (
                   <InputGroupInput
                     placeholder="Search name"
-                    value=""
-                    readOnly
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 )}
                 <InputGroupAddon>
@@ -235,41 +247,55 @@ export const NewChatPopover = memo(
                 </div>
               ) : !isGroupMode ? (
                 <>
-                  <div key="new-group-item">
-                    <NewGroupItem
-                      disabled={isCreatingChat}
-                      onClick={() => setIsGroupMode(true)}
-                    />
-                  </div>
-                  <div key="public-room-item">
-                    {user?.isAdmin && (
-                      <CreatePublicRoomDialog
-                        trigger={
-                          <button
-                            type="button"
-                            className="w-full flex items-center gap-2 p-2 rounded-sm hover:bg-accent transition-colors text-left"
-                          >
-                            <div className="bg-primary/10 p-2 rounded-full">
-                              <Users className="size-4 text-primary" />
-                            </div>
-                            <span>New Public Room</span>
-                          </button>
-                        }
+                  {!searchQuery && (
+                    <>
+                      <div key="new-group-item">
+                        <NewGroupItem
+                          disabled={isCreatingChat}
+                          onClick={() => setIsGroupMode(true)}
+                        />
+                      </div>
+                      <div key="public-room-item">
+                        {user?.isAdmin && (
+                          <CreatePublicRoomDialog
+                            trigger={
+                              <button
+                                type="button"
+                                className="w-full flex items-center gap-2 p-2 rounded-sm hover:bg-accent transition-colors text-left"
+                              >
+                                <div className="bg-primary/10 p-2 rounded-full">
+                                  <Users className="size-4 text-primary" />
+                                </div>
+                                <span>New Public Room</span>
+                              </button>
+                            }
+                          />
+                        )}
+                      </div>
+                    </>
+                  )}
+                  {filteredUsers.length === 0 && searchQuery ? (
+                    <div className="text-center text-muted-foreground p-4">
+                      No users found matching "{searchQuery}"
+                    </div>
+                  ) : (
+                    filteredUsers.map((user) => (
+                      <ChatUserItem
+                        key={user.id}
+                        user={user}
+                        isLoading={loadingUserId === user.id}
+                        disabled={loadingUserId !== null}
+                        onClick={handleCreateChat}
                       />
-                    )}
-                  </div>
-                  {users?.map((user) => (
-                    <ChatUserItem
-                      key={user.id}
-                      user={user}
-                      isLoading={loadingUserId === user.id}
-                      disabled={loadingUserId !== null}
-                      onClick={handleCreateChat}
-                    />
-                  ))}
+                    ))
+                  )}
                 </>
+              ) : filteredUsers.length === 0 && searchQuery ? (
+                <div className="text-center text-muted-foreground p-4">
+                  No users found matching "{searchQuery}"
+                </div>
               ) : (
-                users?.map((user) => (
+                filteredUsers.map((user) => (
                   <GroupUserItem
                     key={user.id}
                     user={user}
