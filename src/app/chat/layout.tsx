@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import ChatLayoutClient from "@/components/chat/chat-layout-client";
 import {
   mapChatsToChatTypes,
   mapUsersToUserTypes,
@@ -7,7 +8,6 @@ import {
 } from "@/lib/server/mappers/chat.mapper";
 import * as chatRepository from "@/lib/server/repositories/chat.repository";
 import * as userRepository from "@/lib/server/repositories/user.repository";
-import ChatLayoutClient from "./layout-client";
 
 export default async function ChatLayout({
   children,

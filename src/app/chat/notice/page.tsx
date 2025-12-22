@@ -1,7 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import * as userRepository from "@/lib/server/repositories/user.repository";
-import NoticeClient from "./page-client";
+import NoticeClient from "./_components/notice-client";
 
 export default async function NoticePage() {
   const { userId } = await auth();

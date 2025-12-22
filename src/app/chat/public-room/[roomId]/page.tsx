@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import * as messageRepository from "@/lib/server/repositories/message.repository";
 import * as roomRepository from "@/lib/server/repositories/room.repository";
 import * as userRepository from "@/lib/server/repositories/user.repository";
-import PublicRoomClient from "./room-client";
+import PublicRoomClient from "./_components/public-room-client";
 
 /**
  * 公共聊天室页面 - Server Component 版本

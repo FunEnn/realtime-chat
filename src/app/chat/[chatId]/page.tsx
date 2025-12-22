@@ -7,7 +7,7 @@ import {
 import * as chatRepository from "@/lib/server/repositories/chat.repository";
 import * as messageRepository from "@/lib/server/repositories/message.repository";
 import * as userRepository from "@/lib/server/repositories/user.repository";
-import SingleChatClient from "./page-client";
+import SingleChatClient from "./_components/single-chat-client";
 
 export default async function SingleChatPage({
   params,
