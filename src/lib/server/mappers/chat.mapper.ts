@@ -1,4 +1,6 @@
 ﻿import type { ChatWithDetails, MessageWithSender, User } from "@/types";
+import { mapMessageToMessageType } from "./message.mapper";
+import { mapUserToUserType } from "./user.mapper";
 
 type PrismaUser = {
   id: string;
@@ -53,70 +55,6 @@ type PrismaChat = {
   lastMessage?: PrismaMessage | null;
   unreadCount?: number;
 };
-
-export function mapUserToUserType(user: PrismaUser): User {
-  if (!user?.id || !user.email) {
-    throw new Error("User must have id and email");
-  }
-
-  const mappedUser: User = {
-    id: user.id,
-    clerkId: user.clerkId,
-    email: user.email,
-    name: user.name ?? "Unknown",
-    avatar: user.avatar ?? null,
-    bio: user.bio ?? null,
-    isAdmin: false,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
-  };
-  return mappedUser;
-}
-
-export function mapMessageToMessageType(
-  message: PrismaMessage,
-): MessageWithSender {
-  if (!message?.id || !message.chatId) {
-    throw new Error("Message must have id and chatId");
-  }
-
-  if (!message.sender) {
-    throw new Error("Message sender is required");
-  }
-
-  // 递归处理 replyTo 消息
-  let replyTo: MessageWithSender | null = null;
-  if (message.replyTo?.sender) {
-    replyTo = {
-      id: message.replyTo.id,
-      chatId: message.replyTo.chatId,
-      senderId: message.replyTo.senderId,
-      content: message.replyTo.content ?? null,
-      image: message.replyTo.image ?? null,
-      replyToId: message.replyTo.replyToId,
-      isSystemMessage: message.replyTo.isSystemMessage ?? false,
-      sender: mapUserToUserType(message.replyTo.sender),
-      replyTo: null, // 只处理一层引用，避免无限递归
-      createdAt: message.replyTo.createdAt,
-      updatedAt: message.replyTo.updatedAt,
-    };
-  }
-
-  const mappedMessage: MessageWithSender = {
-    id: message.id,
-    chatId: message.chatId,
-    senderId: message.senderId,
-    content: message.content ?? null,
-    image: message.image ?? null,
-    replyToId: message.replyToId,
-    isSystemMessage: message.isSystemMessage ?? false,
-    sender: mapUserToUserType(message.sender),
-    replyTo,
-    createdAt: message.createdAt,
-    updatedAt: message.updatedAt,
-  };
-  return mappedMessage;
-}
 
 export function mapChatToChatType(chat: PrismaChat): ChatWithDetails {
   const participants: User[] = [];
@@ -175,8 +113,4 @@ export function mapChatToChatType(chat: PrismaChat): ChatWithDetails {
 
 export function mapChatsToChatTypes(chats: PrismaChat[]): ChatWithDetails[] {
   return chats.map(mapChatToChatType);
-}
-
-export function mapUsersToUserTypes(users: PrismaUser[]): User[] {
-  return users.map(mapUserToUserType);
 }

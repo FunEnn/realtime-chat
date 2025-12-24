@@ -5,6 +5,8 @@ import * as roomRepository from "@/lib/server/repositories/room.repository";
 import * as userRepository from "@/lib/server/repositories/user.repository";
 import PublicRoomClient from "./_components/public-room-client";
 
+const PAGE_SIZE = 30;
+
 /**
  * 公共聊天室页面 - Server Component 版本
  */
@@ -35,15 +37,20 @@ export default async function PublicRoomPage({
   const isMember = await roomRepository.isUserInRoom(roomId, user.id);
 
   // 公共聊天室：所有人都可以查看消息（公开可见）
-  const messagesResult = await messageRepository.findMessagesByRoomId(roomId);
+  const recent = await messageRepository.findRecentMessagesByRoomId(
+    roomId,
+    PAGE_SIZE,
+  );
 
   return (
     <PublicRoomClient
       room={room}
-      initialMessages={messagesResult.messages || []}
+      initialMessages={recent.messages || []}
       roomId={roomId}
       currentUserId={user.id}
       isMember={isMember}
+      initialHasMore={recent.hasMore}
+      initialStartIndex={recent.startIndex}
     />
   );
 }

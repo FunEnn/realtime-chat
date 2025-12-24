@@ -1,13 +1,13 @@
 import { auth } from "@clerk/nextjs/server";
 import { notFound, redirect } from "next/navigation";
-import {
-  mapChatToChatType,
-  mapMessageToMessageType,
-} from "@/lib/server/mappers/chat.mapper";
+import { mapChatToChatType } from "@/lib/server/mappers/chat.mapper";
+import { mapMessageToMessageType } from "@/lib/server/mappers/message.mapper";
 import * as chatRepository from "@/lib/server/repositories/chat.repository";
 import * as messageRepository from "@/lib/server/repositories/message.repository";
 import * as userRepository from "@/lib/server/repositories/user.repository";
 import SingleChatClient from "./_components/single-chat-client";
+
+const PAGE_SIZE = 30;
 
 export default async function SingleChatPage({
   params,
@@ -39,11 +39,14 @@ export default async function SingleChatPage({
     notFound();
   }
 
-  const { messages } = await messageRepository.findMessagesByChatId(chatId);
+  const recent = await messageRepository.findRecentMessagesByChatId(
+    chatId,
+    PAGE_SIZE,
+  );
   const allUsers = await userRepository.getAllUsers();
 
   const chatType = mapChatToChatType(chat);
-  const validMessages = messages.filter(
+  const validMessages = recent.messages.filter(
     (msg) => msg && typeof msg === "object" && msg.id && msg.chatId,
   );
   const messageTypes = validMessages.map(mapMessageToMessageType);
@@ -53,6 +56,8 @@ export default async function SingleChatPage({
       key={chatId}
       initialChat={chatType}
       initialMessages={messageTypes}
+      initialHasMore={recent.hasMore}
+      initialStartIndex={recent.startIndex}
       chatId={chatId}
       currentUserId={user.id}
       allUsers={allUsers}

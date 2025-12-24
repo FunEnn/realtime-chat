@@ -1,9 +1,4 @@
-﻿/**
- * Message Repository - 消息数据访问层
- * 职责：仅负责数据库操作，不包含业务逻辑
- */
-
-import type { Prisma } from "@prisma/client";
+﻿import type { Prisma } from "@prisma/client";
 import prisma from "../prisma";
 
 /**
@@ -59,6 +54,48 @@ export async function findMessagesByChatId(
     messages: messagesWithReply,
     total,
     hasMore: options?.take ? total > (options.skip || 0) + options.take : false,
+  };
+}
+
+export async function findRecentMessagesByRoomId(roomId: string, take: number) {
+  const total = await prisma.roomMessage.count({
+    where: { roomId },
+  });
+
+  const safeTake = Math.max(0, take);
+  const startIndex = Math.max(0, total - safeTake);
+
+  const result = await findMessagesByRoomId(roomId, {
+    skip: startIndex,
+    take: safeTake,
+  });
+
+  return {
+    messages: result.messages,
+    total,
+    startIndex,
+    hasMore: startIndex > 0,
+  };
+}
+
+export async function findRecentMessagesByChatId(chatId: string, take: number) {
+  const total = await prisma.message.count({
+    where: { chatId },
+  });
+
+  const safeTake = Math.max(0, take);
+  const startIndex = Math.max(0, total - safeTake);
+
+  const result = await findMessagesByChatId(chatId, {
+    skip: startIndex,
+    take: safeTake,
+  });
+
+  return {
+    messages: result.messages,
+    total,
+    startIndex,
+    hasMore: startIndex > 0,
   };
 }
 

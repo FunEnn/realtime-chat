@@ -1,9 +1,4 @@
-﻿/**
- * Room Repository - 公共聊天室数据访问层
- * 职责：仅负责数据库操作，不包含业务逻辑
- */
-
-import type { Prisma } from "@prisma/client";
+﻿import type { Prisma } from "@prisma/client";
 import prisma from "../prisma";
 
 /**

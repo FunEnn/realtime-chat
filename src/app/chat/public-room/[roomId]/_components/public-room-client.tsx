@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -18,10 +19,13 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useSocket } from "@/hooks/use-socket";
 import {
+  getRoomMessagesPage,
   joinPublicRoom,
   markRoomAsRead,
 } from "@/lib/server/actions/public-room";
 import type { PublicRoomWithDetails, RoomMessageWithSender } from "@/types";
+
+const PAGE_SIZE = 30;
 
 interface PublicRoomClientProps {
   room: PublicRoomWithDetails;
@@ -29,6 +33,8 @@ interface PublicRoomClientProps {
   roomId: string;
   currentUserId: string;
   isMember: boolean;
+  initialHasMore: boolean;
+  initialStartIndex: number;
 }
 
 interface RoomMember {
@@ -56,6 +62,8 @@ export default function PublicRoomClient({
   roomId,
   currentUserId,
   isMember: initialIsMember,
+  initialHasMore,
+  initialStartIndex,
 }: PublicRoomClientProps) {
   const router = useRouter();
   const [messages, setMessages] = useState<RoomMessageWithSender[]>([]);
@@ -64,6 +72,11 @@ export default function PublicRoomClient({
   const [isJoining, startJoinTransition] = useTransition();
   const [roomData, setRoomData] = useState(room);
   const { socket } = useSocket();
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [startIndex, setStartIndex] = useState(initialStartIndex);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
   // 使用稳定的连接状态值
   const socketConnected = socket?.connected ?? false;
@@ -71,6 +84,56 @@ export default function PublicRoomClient({
   useEffect(() => {
     setMessages(initialMessages);
   }, [initialMessages]);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+
+    const container = scrollContainerRef.current;
+    const prevScrollHeight = container?.scrollHeight ?? 0;
+    const prevScrollTop = container?.scrollTop ?? 0;
+
+    setIsLoadingMore(true);
+    setShouldAutoScroll(false);
+
+    try {
+      const take = PAGE_SIZE;
+      const nextStartIndex = Math.max(0, startIndex - take);
+      const nextTake = Math.max(0, startIndex - nextStartIndex);
+
+      const result = await getRoomMessagesPage(roomId, {
+        skip: nextStartIndex,
+        take: nextTake,
+      });
+
+      if (result.success && result.data) {
+        const data = result.data as {
+          messages: RoomMessageWithSender[];
+          hasMore: boolean;
+          total: number;
+        };
+
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id));
+          const newUnique = data.messages.filter((m) => !existingIds.has(m.id));
+          return [...newUnique, ...prev];
+        });
+
+        setStartIndex(nextStartIndex);
+        setHasMore(nextStartIndex > 0 && data.hasMore);
+      }
+    } finally {
+      setIsLoadingMore(false);
+
+      if (typeof window !== "undefined") {
+        requestAnimationFrame(() => {
+          const el = scrollContainerRef.current;
+          if (!el) return;
+          const newScrollHeight = el.scrollHeight;
+          el.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
+        });
+      }
+    }
+  }, [hasMore, isLoadingMore, roomId, startIndex]);
 
   // 添加乐观消息
   const addOptimisticMessage = (
@@ -269,7 +332,17 @@ export default function PublicRoomClient({
         isMember={isMember}
       />
 
-      <div className="flex-1 overflow-y-auto bg-background">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto bg-background"
+        onScroll={() => {
+          const el = scrollContainerRef.current;
+          if (!el) return;
+          const distanceToBottom =
+            el.scrollHeight - el.scrollTop - el.clientHeight;
+          setShouldAutoScroll(distanceToBottom < 120);
+        }}
+      >
         {messages.length === 0 ? (
           <EmptyState
             title={isMember ? "Start a conversation" : "No messages yet"}
@@ -293,6 +366,11 @@ export default function PublicRoomClient({
               setReplyTo(roomMsg);
             }}
             currentUserId={currentUserId}
+            scrollElementRef={scrollContainerRef}
+            showLoadMore={hasMore}
+            isLoadingMore={isLoadingMore}
+            onLoadMore={loadOlderMessages}
+            shouldAutoScroll={shouldAutoScroll}
           />
         )}
       </div>

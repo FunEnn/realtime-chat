@@ -16,6 +16,8 @@ import {
 } from "@/lib/socket";
 import type { ApiResponse } from "@/types/common";
 import type { CreateChatInput, CreateMessageInput } from "@/types/prisma.types";
+import { mapChatToChatType } from "../mappers/chat.mapper";
+import { mapMessageToMessageType } from "../mappers/message.mapper";
 import * as chatRepository from "../repositories/chat.repository";
 import * as messageRepository from "../repositories/message.repository";
 import * as userRepository from "../repositories/user.repository";
@@ -97,6 +99,50 @@ export async function getChatMessages(chatId: string): Promise<ApiResponse> {
   }
 }
 
+export async function getChatMessagesPage(
+  chatId: string,
+  options: { skip: number; take: number },
+): Promise<ApiResponse> {
+  try {
+    const { userId: clerkId } = await auth();
+    if (!clerkId) throw new Error("Unauthorized");
+
+    const user = await userRepository.findUserByClerkId(clerkId);
+    if (!user) throw new Error("User not found");
+
+    const isMember = await chatRepository.isUserInChat(chatId, user.id);
+    assert.authorized(isMember, "You are not a member of this chat");
+
+    const skip = Math.max(0, options.skip);
+    const take = Math.max(0, options.take);
+
+    const result = await messageRepository.findMessagesByChatId(chatId, {
+      skip,
+      take,
+    });
+
+    const validMessages = result.messages.filter(
+      (msg) => msg && typeof msg === "object" && "id" in msg && "chatId" in msg,
+    );
+
+    type MapperInput = Parameters<typeof mapMessageToMessageType>[0];
+    const messageTypes = validMessages.map((m) =>
+      mapMessageToMessageType(m as unknown as MapperInput),
+    );
+
+    return createSuccessResponse(
+      {
+        messages: messageTypes,
+        hasMore: result.hasMore,
+        total: result.total,
+      },
+      "Messages fetched successfully",
+    );
+  } catch (error) {
+    return handleServerActionError(error);
+  }
+}
+
 /**
  * 更新聊天信息（仅创建者可操作）
  */
@@ -131,7 +177,6 @@ export async function updateChatInfo(
     const participantIds = await chatRepository.getChatParticipantIds(chatId);
 
     // 使用 mapper 转换为完整的 ChatWithDetails 格式
-    const { mapChatToChatType } = await import("../mappers/chat.mapper");
     const mappedChat = mapChatToChatType(updatedChat);
 
     // 通知所有参与者聊天信息已更新
@@ -229,7 +274,6 @@ export async function leaveChat(chatId: string): Promise<ApiResponse> {
     if (updatedChat) {
       const participantIds = await chatRepository.getChatParticipantIds(chatId);
       // 使用 mapper 转换为完整的 ChatWithDetails 格式
-      const { mapChatToChatType } = await import("../mappers/chat.mapper");
       const mappedChat = mapChatToChatType(updatedChat);
       await emitChatInfoUpdatedToParticipants(participantIds, mappedChat);
     }
@@ -333,8 +377,8 @@ export async function createChat(input: CreateChatInput): Promise<ApiResponse> {
     }
 
     // 使用 mapper 转换为完整的 ChatWithDetails 格式
-    const { mapChatToChatType } = await import("../mappers/chat.mapper");
-    const mappedChat = mapChatToChatType(chat as any);
+    type ChatMapperInput = Parameters<typeof mapChatToChatType>[0];
+    const mappedChat = mapChatToChatType(chat as unknown as ChatMapperInput);
 
     // 通知相关用户
     emitNewChatToParticipants(memberIds, mappedChat);
@@ -422,7 +466,6 @@ export async function addUsersToChat(
     if (updatedChat) {
       const participantIds = await chatRepository.getChatParticipantIds(chatId);
       // 使用 mapper 转换为完整的 ChatWithDetails 格式
-      const { mapChatToChatType } = await import("../mappers/chat.mapper");
       const mappedChat = mapChatToChatType(updatedChat);
       await emitChatInfoUpdatedToParticipants(participantIds, mappedChat);
 

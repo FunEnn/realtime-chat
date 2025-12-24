@@ -130,6 +130,38 @@ export async function getRoomMessages(roomId: string): Promise<ApiResponse> {
   }
 }
 
+export async function getRoomMessagesPage(
+  roomId: string,
+  options: { skip: number; take: number },
+): Promise<ApiResponse> {
+  try {
+    const { userId: clerkId } = await auth();
+    if (!clerkId) throw new Error("Unauthorized");
+
+    const user = await userRepository.findUserByClerkId(clerkId);
+    if (!user) throw new Error("User not found");
+
+    const skip = Math.max(0, options.skip);
+    const take = Math.max(0, options.take);
+
+    const result = await messageRepository.findMessagesByRoomId(roomId, {
+      skip,
+      take,
+    });
+
+    return createSuccessResponse(
+      {
+        messages: result.messages,
+        hasMore: result.hasMore,
+        total: result.total,
+      },
+      "Messages fetched successfully",
+    );
+  } catch (error) {
+    return handleServerActionError(error);
+  }
+}
+
 /**
  * 创建公共聊天室
  */

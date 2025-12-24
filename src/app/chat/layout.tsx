@@ -1,11 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import ChatLayoutClient from "@/components/chat/chat-layout-client";
+import { mapChatsToChatTypes } from "@/lib/server/mappers/chat.mapper";
 import {
-  mapChatsToChatTypes,
   mapUsersToUserTypes,
   mapUserToUserType,
-} from "@/lib/server/mappers/chat.mapper";
+} from "@/lib/server/mappers/user.mapper";
 import * as chatRepository from "@/lib/server/repositories/chat.repository";
 import * as userRepository from "@/lib/server/repositories/user.repository";
 
