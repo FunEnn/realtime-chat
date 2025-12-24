@@ -6,9 +6,11 @@ FROM base AS deps
 
 WORKDIR /app
 
-COPY package.json ./
+COPY package.json pnpm-lock.yaml ./
 
-RUN npm install
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+
+RUN pnpm install --frozen-lockfile
 
 FROM base AS builder
 
@@ -18,7 +20,7 @@ COPY --from=deps /app/node_modules ./node_modules
 
 COPY . .
 
-RUN npx prisma generate
+RUN pnpm exec prisma generate
 
 ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 ARG NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
@@ -33,7 +35,7 @@ ENV NEXT_PUBLIC_CLERK_SIGN_UP_URL=$NEXT_PUBLIC_CLERK_SIGN_UP_URL
 ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=$NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL
 ENV NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=$NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL
 
-RUN npm run build
+RUN pnpm run build
 
 FROM base AS runner
 
