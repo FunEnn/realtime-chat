@@ -6,7 +6,7 @@ import AvatarWithBadge from "@/components/shared/avatar-with-badge";
 import { useAuth } from "@/hooks/use-clerk-auth";
 import { cn } from "@/lib/utils";
 import { isFailedMessage, isSendingMessage } from "@/lib/utils/type-guards";
-import { formatChatTime } from "@/lib/utils/user-utils";
+import { formatMessageTimestamp } from "@/lib/utils/user-utils";
 import type { MessageWithSender } from "@/types";
 import { Button } from "../ui/button";
 
@@ -116,7 +116,7 @@ const ChatBodyMessage = memo(({ message, onReply, currentUserId }: Props) => {
                 {senderName}
               </span>
               <span className="text-[10px] sm:text-[11px] text-gray-600 dark:text-gray-400">
-                {formatChatTime(message?.createdAt)}
+                {formatMessageTimestamp(message?.createdAt)}
               </span>
             </div>
 

@@ -152,4 +152,15 @@ export const formatChatTime = (date: string | Date): string => {
   return format(newDate, "M/d");
 };
 
+export const formatMessageTimestamp = (date: string | Date): string => {
+  if (!date) return "";
+  const newDate = new Date(date);
+  if (Number.isNaN(newDate.getTime())) return "Invalid date";
+
+  if (isToday(newDate)) {
+    return format(newDate, "HH:mm");
+  }
+  return format(newDate, "MM/dd HH:mm");
+};
+
 export const generateUUID = (): string => uuidv4();
